@@ -1,5 +1,6 @@
 import plistlib
 import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -106,3 +107,148 @@ def test_windows_wrapper() -> None:
     log = str(j.log_file).replace("%", "%%")
     assert lines[2].endswith(f'>> "{log}" 2>&1')
     assert text.endswith("\r\n")
+
+
+# --- install, remove and status (OS commands go to a fake runner)
+
+
+class FakeRunner:
+    """Records commands; `results` maps a command prefix to (returncode, stdout)."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[list[str], str | None]] = []
+        self.results: dict[tuple[str, ...], list[tuple[int, str]]] = {}
+        self.crontab = ""
+
+    def __call__(
+        self, args: list[str], input: str | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        self.calls.append((args, input))
+        if args[:2] == ["crontab", "-"]:
+            self.crontab = input or ""
+            return subprocess.CompletedProcess(args, 0, "", "")
+        if args[:2] == ["crontab", "-l"]:
+            code = 0 if self.crontab else 1
+            return subprocess.CompletedProcess(args, code, self.crontab, "")
+        for prefix, queue in self.results.items():
+            if tuple(args[: len(prefix)]) == prefix and queue:
+                code, out = queue.pop(0)
+                return subprocess.CompletedProcess(args, code, out, "boom" if code else "")
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    def commands(self) -> list[list[str]]:
+        return [args for args, _ in self.calls]
+
+
+@pytest.fixture
+def runner(monkeypatch: pytest.MonkeyPatch) -> FakeRunner:
+    monkeypatch.setattr(schedule.time, "sleep", lambda s: None)
+    return FakeRunner()
+
+
+@pytest.fixture
+def data(tmp_path: Path) -> DataPaths:
+    return DataPaths(tmp_path / "data")
+
+
+def test_launchd_install_status_remove(tmp_path: Path, runner: FakeRunner, data: DataPaths) -> None:
+    backend = schedule.Launchd(tmp_path, runner)
+    assert backend.status(data) == schedule.Status(False, "launchd", "not installed")
+    backend.install(schedule.make_job(data, 7, 30, env={}), data)
+    assert backend.plist.exists()
+    assert [c[:2] for c in runner.commands()] == [
+        ["launchctl", "bootout"],
+        ["launchctl", "bootstrap"],
+    ]
+    assert backend.status(data).detail == "daily at 07:30 (loaded)"
+    assert backend.remove(data)
+    assert not backend.plist.exists()
+    assert not backend.remove(data)
+
+
+def test_launchd_retries_bootstrap_once(
+    tmp_path: Path, runner: FakeRunner, data: DataPaths
+) -> None:
+    runner.results[("launchctl", "bootstrap")] = [(5, ""), (0, "")]
+    schedule.Launchd(tmp_path, runner).install(schedule.make_job(data, env={}), data)
+    assert sum(c[1] == "bootstrap" for c in runner.commands()) == 2
+
+
+def test_launchd_reports_failure(tmp_path: Path, runner: FakeRunner, data: DataPaths) -> None:
+    runner.results[("launchctl", "bootstrap")] = [(5, ""), (5, "")]
+    with pytest.raises(schedule.ScheduleError, match="launchctl bootstrap"):
+        schedule.Launchd(tmp_path, runner).install(schedule.make_job(data, env={}), data)
+
+
+def test_launchd_status_when_not_loaded(
+    tmp_path: Path, runner: FakeRunner, data: DataPaths
+) -> None:
+    backend = schedule.Launchd(tmp_path, runner)
+    backend.install(schedule.make_job(data, env={}), data)
+    runner.results[("launchctl", "print")] = [(113, "")]
+    assert "not loaded" in backend.status(data).detail
+
+
+def test_systemd_install_status_remove(tmp_path: Path, runner: FakeRunner, data: DataPaths) -> None:
+    backend = schedule.Systemd(tmp_path, runner)
+    assert not backend.status(data).installed
+    backend.install(schedule.make_job(data, 6, 0, env={}), data)
+    assert (backend.unit_dir / f"{schedule.NAME}.service").exists()
+    assert ["systemctl", "--user", "enable", "--now", f"{schedule.NAME}.timer"] in (
+        runner.commands()
+    )
+    runner.results[("systemctl", "--user", "is-enabled")] = [(0, "enabled\n")]
+    assert backend.status(data).detail == "daily at 06:00 (enabled)"
+    assert backend.remove(data)
+    assert not (backend.unit_dir / f"{schedule.NAME}.service").exists()
+    assert not backend.remove(data)
+
+
+def test_cron_keeps_other_entries(tmp_path: Path, runner: FakeRunner, data: DataPaths) -> None:
+    runner.crontab = "0 1 * * * /usr/bin/backup\n"
+    backend = schedule.Cron(tmp_path, runner)
+    backend.install(schedule.make_job(data, 6, 15, env={}), data)
+    backend.install(schedule.make_job(data, 6, 45, env={}), data)  # replaces, not duplicates
+    lines = runner.crontab.splitlines()
+    assert lines[0] == "0 1 * * * /usr/bin/backup"
+    assert sum(schedule.CRON_MARKER in line for line in lines) == 1
+    assert backend.status(data).detail == "daily at 06:45"
+    assert backend.remove(data)
+    assert runner.crontab == "0 1 * * * /usr/bin/backup\n"
+    assert not backend.remove(data)
+    assert not backend.status(data).installed
+
+
+def test_task_scheduler_install_status_remove(
+    tmp_path: Path, runner: FakeRunner, data: DataPaths
+) -> None:
+    backend = schedule.TaskScheduler(tmp_path, runner)
+    backend.install(schedule.make_job(data, 6, 0, env={}), data)
+    create = runner.commands()[0]
+    assert create[:2] == ["schtasks", "/Create"]
+    assert create[create.index("/ST") + 1] == "06:00"
+    assert create[create.index("/TR") + 1] == f'"{backend.wrapper(data)}"'
+    assert backend.wrapper(data).read_bytes().count(b"\r\n") == 2
+    runner.results[("schtasks", "/Query")] = [(0, "TaskName: x\nNext Run Time: 23/10/2026 06:00\n")]
+    assert backend.status(data).detail == "next run: 23/10/2026 06:00"
+    assert backend.remove(data)
+    assert not backend.wrapper(data).exists()
+    runner.results[("schtasks", "/Query")] = [(1, "")]
+    assert not backend.status(data).installed
+
+
+def test_choose_backend(
+    tmp_path: Path, runner: FakeRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert isinstance(schedule.choose_backend("darwin", tmp_path, runner), schedule.Launchd)
+    assert isinstance(schedule.choose_backend("win32", tmp_path, runner), schedule.TaskScheduler)
+
+    monkeypatch.setattr(schedule.shutil, "which", lambda name: f"/usr/bin/{name}")
+    runner.results[("systemctl", "--user", "is-system-running")] = [(0, "running\n")]
+    assert isinstance(schedule.choose_backend("linux", tmp_path, runner), schedule.Systemd)
+    # No user systemd session (e.g. a container): fall back to cron.
+    assert isinstance(schedule.choose_backend("linux", tmp_path, runner), schedule.Cron)
+
+    monkeypatch.setattr(schedule.shutil, "which", lambda name: None)
+    with pytest.raises(schedule.ScheduleError, match="own scheduler"):
+        schedule.choose_backend("linux", tmp_path, runner)
