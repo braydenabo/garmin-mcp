@@ -9,10 +9,10 @@ All notable changes to this project are documented here. The format is based on 
 - Chart guidance requests one chart for general sleep prompts and discourages redrawing the same data with other plotting tools. Chart resources describe their rendered UI to ChatGPT, and height reporting also uses its intrinsic-height bridge when available.
 - Chart HTML uses content-versioned resource addresses so clients can fetch layout fixes after refreshing their tool metadata. The original resource remains available for compatibility. Crowded month-end date labels no longer overlap.
 - Charts no longer leave a blank scroll area beneath longer date ranges. The screen-reader table is contained in a clipped wrapper, and chart height is reported after the host finishes initializing, including when results shrink.
-- Charts now show metric-specific colors, rounded bars, duration formatting, average/selected-day headings, keyboard selection and a sleep-stage legend.
 
 ### Added
 
+- ChatGPT setup now offers to download and checksum-verify the official tunnel client for macOS, Linux or Windows, installs it privately without PATH changes, and opens the account and ChatGPT setup pages in your browser. `--no-browser` supports headless setups.
 - Charts now show metric-specific colors, rounded bars, duration formatting, average/selected-day headings, keyboard selection and a sleep-stage legend.
 - `garmin_show_chart`: when you ask to see your data, apps that support MCP Apps (Claude Desktop, claude.ai, ChatGPT, VS Code) show an interactive chart: bars for totals, lines for levels, stacked sleep stages, with gaps for days without data. The chart page is self-contained and works offline; other apps get the same data as text. It can be turned off with the `charts` toolset.
 - `install-client`: shows or applies the setup for Claude Desktop, Claude Code, Cursor, VS Code, Gemini CLI and Codex CLI, plus a setup guide for each in `docs/clients/`. The README quickstart now matches what works today.
