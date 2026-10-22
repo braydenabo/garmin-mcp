@@ -30,6 +30,8 @@ These commands are safe for a coding agent to run when the user asks:
 - `garmin-connect-personal-mcp sync [--days-back N]` downloads data into the user's local archive.
 - `garmin-connect-personal-mcp schedule install [--time HH:MM]` installs a daily sync with the OS scheduler. It's a lasting change to the user's machine, so run it only when the user asks for automatic syncing. `schedule status` and `schedule remove` check or undo it.
 
+To diagnose a problem, run `garmin-connect-personal-mcp doctor --json`: each check has a `status` (ok, info, warn, fail) and, when something is wrong, a `fix`. Its output is safe to show or paste.
+
 Never handle the user's API key yourself. The user saves it with `garmin-connect-personal-mcp init` at the hidden prompt. MCP tools must never install or change schedules; they only point the user to the command.
 
 ## Conventions

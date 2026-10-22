@@ -1,3 +1,4 @@
+import json
 import os
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
@@ -6,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from garmin_connect_personal_mcp import config, db, doctor, schedule, sync
+from garmin_connect_personal_mcp import cli, config, db, doctor, schedule, sync
 from garmin_connect_personal_mcp.garmin_client import GarminError
 
 posix_only = pytest.mark.skipif(os.name != "posix", reason="file modes are POSIX-only")
@@ -105,13 +106,17 @@ def test_archive_contents_and_errors(paths: config.DataPaths) -> None:
         conn, "hrv", date(2026, 3, 2), "error", "Garmin's rate limit was reached (HTTP 429)."
     )
     db.upsert_activity(conn, 1, {"x": 1})
+    db.record_sync(conn, "activities", date(2026, 3, 1), "ok")
     conn.commit()
     conn.close()
 
     checks = by_name(doctor.check_archive(paths))
     assert checks["Archive"].status == "ok"
     assert "schema version" in checks["Archive"].summary
-    assert "sleep: 1 day(s) with data" in checks["Contents"].details
+    assert "sleep: 1 day(s) stored" in checks["Contents"].details
+    assert not any(
+        d.startswith("activities:") and "day(s)" in d for d in checks["Contents"].details
+    )
     assert "activities: 1, FIT files: 0" in checks["Contents"].details
     errors = checks["Sync errors"]
     assert errors.status == "warn" and "2 day(s)" in errors.summary
@@ -256,3 +261,83 @@ def test_run_checks_order_and_skips(paths: config.DataPaths) -> None:
         doctor.run_checks(paths, api_factory=raises(401), backend_factory=backend)  # type: ignore[arg-type]
     )
     assert called["Garmin access"].status == "fail"
+
+
+# --- report and CLI
+
+
+def sample() -> list[doctor.Check]:
+    return [
+        doctor.Check("Versions", "info", "v1"),
+        doctor.Check("API key", "ok", "saved"),
+        doctor.Check("Sync errors", "warn", "2 day(s) failed", "Run sync.", ["hrv: 2 day(s)"]),
+        doctor.Check("Garmin access", "fail", "rejected", "Make a new key."),
+    ]
+
+
+def test_render_text() -> None:
+    text = doctor.render_text(sample())
+    assert text.startswith("garmin-connect-personal-mcp doctor\nSafe to share")
+    assert "✗ Garmin access  rejected\n    Fix: Make a new key." in text
+    assert "! Sync errors    2 day(s) failed\n    - hrv: 2 day(s)\n    Fix: Run sync." in text
+    assert text.rstrip().endswith("1 problem(s) and 1 warning(s). See the fixes above.")
+    assert "✓ API key" in text and "    Fix" not in text.split("API key")[1].split("\n")[1]
+
+
+def test_render_text_ascii_and_summaries() -> None:
+    ok_only = [doctor.Check("API key", "ok", "saved")]
+    assert doctor.render_text(ok_only, doctor.ASCII_MARKS).rstrip().endswith("No problems found.")
+    assert "ok API key" in doctor.render_text(ok_only, doctor.ASCII_MARKS)
+    warn_only = [doctor.Check("Sync errors", "warn", "x")]
+    assert doctor.render_text(warn_only).rstrip().endswith("No problems, 1 warning(s).")
+
+
+def test_render_json() -> None:
+    report = json.loads(doctor.render_json(sample()))
+    assert report["problems"] == 1 and report["warnings"] == 1
+    assert report["checks"][3] == {
+        "name": "Garmin access",
+        "status": "fail",
+        "summary": "rejected",
+        "fix": "Make a new key.",
+        "details": [],
+    }
+
+
+def test_known_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert doctor.known_secrets({}) == []
+    config.save_api_key("fake-key-from-file")
+    assert doctor.known_secrets({"GARMIN_PERSONAL_API_KEY": "fake-key-from-env"}) == [
+        "fake-key-from-env",
+        "fake-key-from-file",
+    ]
+
+
+def test_cli_doctor_report_is_safe_to_share(
+    isolated_home: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config.save_api_key("fake-key-123456")
+    # Simulate a check that accidentally echoes the key and the home folder.
+    leaky = doctor.Check("Leak test", "fail", f"key fake-key-123456 at {isolated_home}/x")
+    monkeypatch.setattr(doctor, "run_checks", lambda paths, offline: [leaky])
+    monkeypatch.setattr(cli.Path, "home", lambda: isolated_home)
+    assert cli.main(["doctor", "--offline"]) == 1
+    out = capsys.readouterr().out
+    assert "fake-key-123456" not in out and str(isolated_home) not in out
+    assert "key [redacted] at ~/x" in out
+
+
+def test_cli_doctor_offline_on_fresh_machine(capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["doctor", "--offline"]) == 1  # no key, no data folder
+    out = capsys.readouterr().out
+    assert "✗ API key" in out or "XX API key" in out
+    assert "skipped (--offline)" in out
+
+
+def test_cli_doctor_json(capsys: pytest.CaptureFixture[str]) -> None:
+    cli.main(["doctor", "--offline", "--json"])
+    report = json.loads(capsys.readouterr().out)
+    assert report["tool"] == "garmin-connect-personal-mcp"
+    assert any(c["name"] == "API key" and c["status"] == "fail" for c in report["checks"])

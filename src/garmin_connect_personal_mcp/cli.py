@@ -4,8 +4,9 @@ import argparse
 import getpass
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
-from garmin_connect_personal_mcp import __version__, config, db, schedule
+from garmin_connect_personal_mcp import __version__, config, db, doctor, schedule
 from garmin_connect_personal_mcp.garmin_client import GarminApi, GarminError
 from garmin_connect_personal_mcp.progress import ProgressDisplay
 from garmin_connect_personal_mcp.sync import DAILY_DATASETS, SyncAlreadyRunning, run_sync
@@ -68,6 +69,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     actions.add_parser("remove", help="remove the daily sync")
     actions.add_parser("status", help="show whether the daily sync is installed")
+
+    check = commands.add_parser(
+        "doctor",
+        help="check your setup; the report is safe to paste into an issue",
+        description=(
+            "Check the API key, Garmin access, the archive, recent sync errors and the daily "
+            "schedule. The report never includes your API key, health data or home folder path."
+        ),
+    )
+    check.add_argument("--offline", action="store_true", help="skip the request to Garmin")
+    check.add_argument("--json", action="store_true", help="print the report as JSON")
     return parser
 
 
@@ -208,6 +220,27 @@ def _schedule_install(
     return 0
 
 
+def cmd_doctor(args: argparse.Namespace) -> int:
+    checks = doctor.run_checks(config.data_paths(), offline=args.offline)
+    redact = doctor.Redactor(Path.home(), doctor.known_secrets())
+    checks = [redact.check(c) for c in checks]
+    if args.json:
+        text = doctor.render_json(checks)
+    else:
+        marks = doctor.MARKS if _can_print("".join(doctor.MARKS.values())) else doctor.ASCII_MARKS
+        text = doctor.render_text(checks, marks)
+    sys.stdout.write(redact(text))
+    return 1 if any(c.status == "fail" for c in checks) else 0
+
+
+def _can_print(text: str) -> bool:
+    try:
+        text.encode(sys.stdout.encoding or "ascii")
+    except (UnicodeEncodeError, LookupError):
+        return False
+    return True
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -217,5 +250,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_sync(args)
     if args.command == "schedule":
         return cmd_schedule(args)
+    if args.command == "doctor":
+        return cmd_doctor(args)
     parser.print_help()
     return 0

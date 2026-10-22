@@ -6,6 +6,8 @@ paths are shown relative to `~`, and the finished text is scanned for the key
 as a last line of defence.
 """
 
+import contextlib
+import json
 import os
 import platform
 import sqlite3
@@ -156,7 +158,8 @@ def _archive_contents(conn: sqlite3.Connection, paths: config.DataPaths) -> list
 
     ok_days = dict(
         conn.execute(
-            "SELECT dataset, COUNT(*) FROM sync_log WHERE status = 'ok' GROUP BY dataset"
+            "SELECT dataset, COUNT(*) FROM sync_log"
+            " WHERE status = 'ok' AND dataset != 'activities' GROUP BY dataset"
         ).fetchall()
     )
     activities = conn.execute("SELECT COUNT(*), COUNT(fit_path) FROM activities").fetchone()
@@ -166,7 +169,8 @@ def _archive_contents(conn: sqlite3.Connection, paths: config.DataPaths) -> list
         "ok" if ok_days or activities[0] else "warn",
         f"last successful sync {last or 'never'} (UTC)",
         fix=None if ok_days or activities[0] else f"Run `{PROG} sync`.",
-        details=[f"{name}: {count} day(s) with data" for name, count in sorted(ok_days.items())]
+        # "Stored" rather than "with data": some days hold Garmin's empty no-wear placeholders.
+        details=[f"{name}: {count} day(s) stored" for name, count in sorted(ok_days.items())]
         + [f"activities: {activities[0]}, FIT files: {activities[1]}"],
     )
 
@@ -284,3 +288,53 @@ def run_checks(
 
 def as_dicts(checks: list[Check]) -> list[dict[str, object]]:
     return [asdict(check) for check in checks]
+
+
+MARKS = {"ok": "✓", "info": "·", "warn": "!", "fail": "✗"}
+ASCII_MARKS = {"ok": "ok", "info": "--", "warn": "!!", "fail": "XX"}
+
+
+def known_secrets(env: dict[str, str] | None = None) -> list[str]:
+    """The API key(s) on this machine, so the report can be scrubbed of them."""
+    environment = dict(os.environ) if env is None else env
+    secrets = [environment.get(config.API_KEY_ENV_VAR, "").strip()]
+    key_file = config.api_key_file()
+    if key_file.exists():
+        with contextlib.suppress(OSError):
+            secrets.append(key_file.read_text(encoding="utf-8").strip())
+    return [s for s in secrets if s]
+
+
+def render_text(checks: list[Check], marks: dict[str, str] = MARKS) -> str:
+    width = max(len(c.name) for c in checks)
+    lines = [
+        f"{PROG} doctor",
+        "Safe to share: contains no API key, health data or home folder path.",
+        "",
+    ]
+    for check in checks:
+        lines.append(f"{marks[check.status]} {check.name:<{width}}  {check.summary}")
+        lines += [f"    - {detail}" for detail in check.details]
+        if check.fix and check.status in ("warn", "fail", "info"):
+            lines.append(f"    Fix: {check.fix}")
+    problems = sum(c.status == "fail" for c in checks)
+    warnings = sum(c.status == "warn" for c in checks)
+    lines.append("")
+    if problems:
+        lines.append(f"{problems} problem(s) and {warnings} warning(s). See the fixes above.")
+    elif warnings:
+        lines.append(f"No problems, {warnings} warning(s).")
+    else:
+        lines.append("No problems found.")
+    return "\n".join(lines) + "\n"
+
+
+def render_json(checks: list[Check]) -> str:
+    report = {
+        "tool": PROG,
+        "version": __version__,
+        "problems": sum(c.status == "fail" for c in checks),
+        "warnings": sum(c.status == "warn" for c in checks),
+        "checks": as_dicts(checks),
+    }
+    return json.dumps(report, indent=2, ensure_ascii=False) + "\n"

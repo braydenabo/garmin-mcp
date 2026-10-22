@@ -21,6 +21,16 @@ It syncs Garmin's official [Personal API](https://developer.garmin.com/gc-develo
 5. `uvx garmin-connect-personal-mcp install-client claude`: adds the server to your assistant (or `cursor`, `vscode`, `gemini`, `codex`).
 6. Ask: *"How did I sleep last night?"*
 
+## Troubleshooting
+
+Run:
+
+```bash
+garmin-connect-personal-mcp doctor
+```
+
+It checks your API key, Garmin access, the local archive, recent sync errors and the daily schedule, and says how to fix anything wrong. The report contains no API key, health data or home folder path, so you can paste it into an issue as is. Add `--offline` to skip contacting Garmin.
+
 ## Privacy
 
 - **You run it yourself, with your own key.** There is no hosted service, and your data never passes through this project.
