@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Fixed
 
+- Tunnel runners now reject duplicate instances for the same profile and archive using a crash-released OS lock. Background child processes are stopped with their runner rather than left orphaned.
 - Chart guidance requests one chart for general sleep prompts and discourages redrawing the same data with other plotting tools. Chart resources describe their rendered UI to ChatGPT, and height reporting also uses its intrinsic-height bridge when available.
 - Chart HTML uses content-versioned resource addresses so clients can fetch layout fixes after refreshing their tool metadata. The original resource remains available for compatibility. Crowded month-end date labels no longer overlap.
 - ChatGPT setup checks authenticated tunnel metadata access before saving a runtime key or starting the client. It identifies environment-key overrides and provides `--replace-key` to bypass a rejected environment or saved key; the local configuration check alone no longer implies successful authentication.

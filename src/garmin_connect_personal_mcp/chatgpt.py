@@ -353,8 +353,6 @@ def _setup(
     print(f"Next time: {PROG} setup-chatgpt --profile {profile}")
     if not reuse_profile:
         _open_page(CHATGPT_URL, no_browser=no_browser)
-    return subprocess.run(  # noqa: S603
-        [executable, "run", "--profile", profile, "--control-plane.api-key", f"env:{KEY_ENV}"],
-        env=env,
-        check=False,
-    ).returncode
+    from garmin_connect_personal_mcp import tunnel_process
+
+    return tunnel_process.run(executable, profile, env)
