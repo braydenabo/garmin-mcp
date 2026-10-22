@@ -80,6 +80,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     check.add_argument("--offline", action="store_true", help="skip the request to Garmin")
     check.add_argument("--json", action="store_true", help="print the report as JSON")
+
+    commands.add_parser(
+        "serve",
+        help="run the MCP server over stdio (what MCP clients launch)",
+        description=(
+            "Run the MCP server over stdio. MCP clients such as Claude Desktop, Claude Code, "
+            "Cursor and Gemini CLI start this command themselves; you rarely run it by hand."
+        ),
+    )
     return parser
 
 
@@ -241,6 +250,14 @@ def _can_print(text: str) -> bool:
     return True
 
 
+def cmd_serve() -> int:
+    # Imported here so the rest of the CLI starts fast and doesn't need the MCP SDK loaded.
+    from garmin_connect_personal_mcp.server import build_server
+
+    build_server(config.data_paths()).run("stdio")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -252,5 +269,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_schedule(args)
     if args.command == "doctor":
         return cmd_doctor(args)
+    if args.command == "serve":
+        return cmd_serve()
     parser.print_help()
     return 0

@@ -20,6 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "garmin-connect-personal-api-python~=1.0.0",
+    "mcp~=2.3",
     "platformdirs>=4.2",
 ]
 

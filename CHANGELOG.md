@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- MCP server (`serve`, stdio) with its first tool, `garmin_describe_data`: what's in the archive, each dataset's coverage and last sync, and every metric with its unit. Built on the official MCP Python SDK 2.x (protocol 2026-07-28).
 - `doctor` command: checks the API key, Garmin access, the archive, sync errors, a running sync, the log and the daily schedule, with a fix for each problem. The report is safe to paste publicly (no API key, health data or home folder path). `--offline` skips contacting Garmin; `--json` is for agents.
 - `schedule install | status | remove`: run `sync` once a day with the OS scheduler (launchd on macOS, a systemd user timer or cron on Linux, Task Scheduler on Windows). Output goes to `logs/sync.log`; the API key is never written into a scheduler file.
 - `sync --days-back` accepts 1 to 3650 days (10 years), to catch typos early.

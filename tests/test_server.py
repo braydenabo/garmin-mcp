@@ -1,0 +1,120 @@
+"""The MCP server, exercised through the SDK's own client."""
+
+import json
+import os
+import sys
+from collections.abc import Awaitable, Callable
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+import anyio
+import pytest
+from mcp import Client, StdioServerParameters
+
+from garmin_connect_personal_mcp import config, db, metrics
+from garmin_connect_personal_mcp.server import build_server
+
+DAY = date(2026, 3, 10)
+
+
+def run[T](fn: Callable[[Client], Awaitable[T]], paths: config.DataPaths | None = None) -> T:
+    server = build_server(paths or config.data_paths())
+
+    async def main() -> T:
+        async with Client(server) as client:
+            return await fn(client)
+
+    return anyio.run(main)
+
+
+def call(name: str, args: dict[str, Any] | None = None) -> Any:
+    async def go(client: Client) -> Any:
+        result = await client.call_tool(name, args or {})
+        assert not result.is_error, result.content
+        # The text copy must match the structured content for text-only clients.
+        assert json.loads(result.content[0].text) == result.structured_content  # type: ignore[union-attr]
+        return result.structured_content
+
+    return run(go)
+
+
+def seed() -> None:
+    conn = db.connect(config.data_paths().db)
+    db.upsert_daily(
+        conn, "sleep", DAY, {"calendarDate": DAY.isoformat(), "sleepTimeSeconds": 27000}
+    )
+    db.record_sync(conn, "sleep", DAY, "ok")
+    db.upsert_activity(conn, 1, {"activityId": 1}, calendar_date=DAY, activity_type="running")
+    conn.commit()
+    conn.close()
+
+
+def test_tools_are_listed_with_annotations_and_schemas() -> None:
+    async def go(client: Client) -> Any:
+        return (await client.list_tools()).tools
+
+    tools = {t.name: t for t in run(go)}
+    describe = tools["garmin_describe_data"]
+    assert describe.annotations is not None
+    assert describe.annotations.read_only_hint is True
+    assert describe.annotations.open_world_hint is False
+    assert describe.output_schema is not None
+    assert describe.input_schema["properties"] == {}
+
+
+def test_server_instructions_point_to_describe_data() -> None:
+    server = build_server(config.data_paths())
+    assert server.instructions is not None
+    assert "garmin_describe_data" in server.instructions
+    assert "null, never zero" in server.instructions
+
+
+def test_describe_without_archive() -> None:
+    result = call("garmin_describe_data")
+    assert result["archive_exists"] is False
+    assert result["datasets"] == []
+    assert any("sync" in note for note in result["notes"])
+    assert len(result["metrics"]) == len(metrics.METRICS)
+
+
+def test_describe_with_data() -> None:
+    seed()
+    result = call("garmin_describe_data")
+    assert result["archive_exists"] is True
+    sleep = next(d for d in result["datasets"] if d["dataset"] == "sleep")
+    assert sleep["days_with_data"] == 1 and sleep["first_date"] == DAY.isoformat()
+    assert result["activities_count"] == 1
+    hours = next(m for m in result["metrics"] if m["name"] == "sleep_hours")
+    assert hours == {
+        "name": "sleep_hours",
+        "dataset": "sleep",
+        "unit": "hours",
+        "description": "Total sleep",
+        "numeric": True,
+    }
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="stdio subprocess test is POSIX-only for now")
+def test_serve_over_stdio(isolated_home: Path) -> None:
+    """Launch `serve` the way an MCP client does and talk to it over stdin/stdout."""
+    seed()
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "garmin_connect_personal_mcp", "serve"],
+        env={
+            "HOME": str(isolated_home),
+            "GARMIN_MCP_DATA_DIR": os.environ["GARMIN_MCP_DATA_DIR"],
+            "PATH": os.environ.get("PATH", ""),
+        },
+    )
+
+    async def main() -> Any:
+        async with Client(params, read_timeout_seconds=30) as client:
+            names = [t.name for t in (await client.list_tools()).tools]
+            result = await client.call_tool("garmin_describe_data", {})
+            return names, result.structured_content
+
+    names, described = anyio.run(main)
+    assert "garmin_describe_data" in names
+    assert described["archive_exists"] is True
