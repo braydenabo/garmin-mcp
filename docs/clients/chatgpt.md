@@ -138,6 +138,7 @@ This is useful for local MCP Inspector checks or a tunnel profile that forwards 
 
 ## Troubleshooting
 
+- If a Garmin widget is followed by a second, assistant-generated chart, refresh the tool metadata after updating and restart the background tunnel with the full `garmin-connect-personal-mcp chatgpt-background stop` and `start` commands (prefix each with `uv run` in a checkout). Request a chart in a new conversation. UI-capable calls now give the model summary statistics, not the full plotted arrays; the widget receives those through component-only `_meta`. This reduces redundant rendering but cannot prevent ChatGPT from plotting values it has obtained through other tools or earlier messages. Component-only metadata is still sent to the client; it is not an encrypted/private store outside ChatGPT.
 - If charts still show an old layout after upgrading, restart the tunnel/server, refresh GarminMCP's tools in ChatGPT, and request a new chart in a new conversation. Chart UI addresses include a content version so the refreshed tool list points at fresh HTML; old conversation widgets can retain their cached layout.
 - `tunnel-client doctor --profile garmin-local --explain` reports profile and connectivity problems.
 - Confirm `tunnel-client run` is still active; ChatGPT cannot discover or call tools while it is stopped.

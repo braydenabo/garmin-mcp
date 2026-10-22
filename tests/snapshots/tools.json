@@ -1421,7 +1421,7 @@
     },
     "meta": {
       "ui": {
-        "resourceUri": "ui://garmin/chart-042f1e9cee5a922f.html"
+        "resourceUri": "ui://garmin/chart-1a5907a0be4efa99.html"
       }
     },
     "name": "garmin_show_chart",
@@ -1463,6 +1463,7 @@
           "type": "object"
         }
       },
+      "description": "Wire contract: plot arrays are present only for clients without MCP Apps.",
       "properties": {
         "average": {
           "anyOf": [
@@ -1502,7 +1503,7 @@
           "type": "string"
         },
         "labels": {
-          "description": "Dates (or week-start dates), oldest first",
+          "description": "Dates; omitted for UI-capable clients, whose widget receives the full plot",
           "items": {
             "type": "string"
           },
@@ -1521,6 +1522,7 @@
           "type": "array"
         },
         "series": {
+          "description": "Plot values; omitted for UI-capable clients to avoid duplicate rendering",
           "items": {
             "$ref": "#/$defs/Series"
           },
@@ -1548,13 +1550,11 @@
         "bucket",
         "start",
         "end",
-        "labels",
-        "series",
         "average",
         "days_with_data",
         "notes"
       ],
-      "title": "ChartData",
+      "title": "ChartResponse",
       "type": "object"
     },
     "title": "Show a chart"

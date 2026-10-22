@@ -1,7 +1,8 @@
 """Chart data for garmin_show_chart.
 
-The same compact structure goes to the model (as the tool result) and to the
-chart view (via MCP Apps), so the model can describe what the user sees.
+The full structure hydrates the chart view. UI-capable clients receive plotted
+points through component-only metadata and expose just a summary to the model.
+Clients without MCP Apps retain the full structured and text data fallback.
 Days without data are null, so a chart shows a gap rather than a zero.
 """
 
@@ -47,6 +48,19 @@ class ChartData(BaseModel):
     average: float | None = Field(description="Mean of the plotted totals over days with data")
     days_with_data: int
     notes: list[str]
+
+
+class ChartResponse(ChartData):
+    """Wire contract: plot arrays are present only for clients without MCP Apps."""
+
+    labels: list[str] = Field(
+        default_factory=list,
+        description="Dates; omitted for UI-capable clients, whose widget receives the full plot",
+    )
+    series: list[Series] = Field(
+        default_factory=list,
+        description="Plot values; omitted for UI-capable clients to avoid duplicate rendering",
+    )
 
 
 def _periods(start: date, end: date, bucket: Literal["day", "week"]) -> list[date]:

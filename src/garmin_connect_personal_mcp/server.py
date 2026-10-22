@@ -3,6 +3,7 @@
 Tools only read the archive, which sync fills. Every tool has a flat input
 schema, units in its output field names, accurate annotations, and a typed
 output (structuredContent plus a text copy for clients that only read text).
+UI chart calls expose a summary; full plot data goes only to the widget metadata.
 Errors are returned as tool results that say what to do next.
 """
 
@@ -16,11 +17,11 @@ from importlib.resources import files
 from statistics import fmean
 from typing import Annotated, Any, Literal
 
-from mcp.server.apps import Apps
-from mcp.server.mcpserver import MCPServer
+from mcp.server.apps import Apps, client_supports_apps
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.mcpserver.resources import TextResource
-from mcp.types import ToolAnnotations
+from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import BaseModel, Field
 
 from garmin_connect_personal_mcp import __version__, activities, charts, db, metrics
@@ -431,6 +432,7 @@ def _chart_apps(paths: DataPaths, today: Callable[[], date]) -> Apps:
         annotations=READ_ONLY,
     )
     def garmin_show_chart(
+        ctx: Context[Any, Any],
         metric: Annotated[
             str,
             Field(
@@ -445,11 +447,28 @@ def _chart_apps(paths: DataPaths, today: Callable[[], date]) -> Apps:
         bucket: Annotated[
             Literal["day", "week"], Field(description="A bar or point per day, or weekly means")
         ] = "day",
-    ) -> charts.ChartData:
+    ) -> Annotated[CallToolResult, charts.ChartResponse]:
         now = today()
         end_date = parse_date(end, now)
         start_date = parse_date(start, now) if start else end_date - timedelta(days=29)
-        return show_chart(paths, metric, start_date, end_date, bucket)
+        data = show_chart(paths, metric, start_date, end_date, bucket)
+        if not client_supports_apps(ctx):
+            return CallToolResult(
+                structured_content=data.model_dump(),
+                content=[TextContent(type="text", text=data.model_dump_json())],
+            )
+        return CallToolResult(
+            structured_content=data.model_dump(exclude={"labels", "series"}),
+            content=[
+                TextContent(
+                    type="text",
+                    text="The interactive Garmin chart is displayed. Briefly summarize its "
+                    "average and coverage in text. Do not create a second chart or fetch the same "
+                    "points again just to redraw them.",
+                )
+            ],
+            _meta={"garmin/chart": data.model_dump()},
+        )
 
     return apps
 

@@ -249,6 +249,74 @@ def test_accessibility_table_is_clipped_inside_an_anchored_wrapper() -> None:
 
 
 @node
+def test_plot_data_uses_widget_metadata_with_legacy_fallback() -> None:
+    code = (
+        "var module = {exports: {}};"
+        + SCRIPT
+        + "\nconst assert = require('node:assert/strict');"
+        + "const data = "
+        + json.dumps(chart())
+        + ";"
+        + r"""
+const read = module.exports.chartDataFromResult;
+const full = {_meta: {"garmin/chart": data}};
+const summary = {structuredContent: {metric: "sleep_hours", average: 7}};
+assert.equal(read(full), data);
+assert.equal(read(summary, full), data);
+assert.equal(read(summary, {"garmin/chart": data}), data);
+assert.equal(read(summary, {call_tool_result: full}), data);
+assert.equal(read(summary, {mcp_tool_result: full}), data);
+assert.equal(read({structuredContent: data}), data);
+assert.equal(read({structuredContent: {labels: [], series: []}, _meta: full._meta}), data);
+assert.equal(read(summary), null);
+assert.equal(read({_meta: {"garmin/chart": {labels: []}}}), null);
+"""
+    )
+    subprocess.run([str(NODE), "-e", code], capture_output=True, text=True, check=True)
+
+
+@node
+@pytest.mark.parametrize("source", ["standard", "chatgpt_globals", "legacy"])
+def test_host_result_renders_one_chart_from_its_payload(source: str) -> None:
+    harness = r"""
+const vm = require("node:vm"), assert = require("node:assert/strict");
+const sent = [], listeners = {};
+const parent = {postMessage: m => sent.push(m)};
+const app = {innerHTML: "", getBoundingClientRect: () => ({height: 300, width: 640})};
+const context = {
+  window: {parent, addEventListener: (name, fn) => {listeners[name] = fn;}},
+  document: {getElementById: () => app, querySelector: () => ({addEventListener() {}})}
+};
+vm.createContext(context);
+vm.runInContext(SCRIPT, context);
+if (SOURCE === "chatgpt_globals") {
+  const full = {_meta: {"garmin/chart": DATA}};
+  context.window.openai = {toolResponseMetadata: {mcp_tool_result: full}};
+  listeners["openai:set_globals"]({});
+} else {
+  const params = SOURCE === "legacy" ? {structuredContent: DATA} : {
+    structuredContent: {metric: DATA.metric}, _meta: {"garmin/chart": DATA}
+  };
+  listeners.message({source: parent, data: {method: "ui/notifications/tool-result", params}});
+}
+assert.equal((app.innerHTML.match(/<svg /g) || []).length, 1);
+assert.ok(app.innerHTML.includes("Average"));
+assert.ok(!app.innerHTML.includes("No chart data"));
+"""
+    code = (
+        "const SCRIPT = "
+        + json.dumps(SCRIPT)
+        + "; const DATA = "
+        + json.dumps(chart())
+        + "; const SOURCE = "
+        + json.dumps(source)
+        + ";\n"
+        + harness
+    )
+    subprocess.run([str(NODE), "-e", code], capture_output=True, text=True, check=True)
+
+
+@node
 @pytest.mark.parametrize("native_bridge", [False, True])
 def test_size_reports_wait_for_host_and_allow_shrinking(native_bridge: bool) -> None:
     harness = r"""

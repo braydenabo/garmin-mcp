@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garmin chart</title>
 <!--
-  MCP Apps view for garmin_show_chart. Self-contained: no external scripts,
-  fonts or network requests. It receives the tool result from the host over
-  postMessage (spec 2026-01-26) and draws an SVG chart.
+  Self-contained MCP Apps chart; no external scripts, fonts or requests.
 -->
 <style>
   :root {
@@ -157,7 +155,7 @@ function linePath(pts) {
   return pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
 }
 
-// Pure: chart data in, SVG markup out. Tested with Node.
+// Pure SVG renderer.
 function renderChart(data) {
   var n = data.labels.length, s = scale(data), stacked = data.kind === "stacked";
   var plotW = W - PAD.left - PAD.right, plotH = H - PAD.top - PAD.bottom, slot = plotW / Math.max(n, 1);
@@ -227,7 +225,7 @@ function renderChart(data) {
   return out.join("");
 }
 
-// The headline: the average, or the selected day when the user points at one.
+// Average or selected-day headline.
 function renderHeader(data, sel) {
   var picked = has(sel) && sel >= 0 && sel < data.labels.length;
   var value = picked ? (data.kind === "stacked" ? totals(data)[sel] : data.series[0].values[sel]) : data.average;
@@ -261,7 +259,7 @@ function renderView(data, sel) {
   return out.join("");
 }
 
-// --- interaction: point at (or arrow to) a day to see its numbers, like Apple Health ---
+// Pointer and keyboard day selection.
 
 var current = null, selected = null;
 
@@ -305,7 +303,7 @@ function show(data) {
   reportSize();
 }
 
-// --- MCP Apps protocol (host <-> view over postMessage) ---
+// MCP Apps bridge.
 
 var nextId = 1, pending = {}, lastHeight = 0, lastIntrinsicHeight = 0, hostReady = false;
 
@@ -318,6 +316,19 @@ function request(method, params) {
 }
 
 function notify(method, params) { send({ jsonrpc: "2.0", method: method, params: params || {} }); }
+
+// Full plot arrays are widget-only. Older servers put them in structuredContent.
+function chartDataFromResult(result, metadata) {
+  var candidates = [result, metadata, metadata && metadata.call_tool_result,
+    metadata && metadata.mcp_tool_result];
+  for (var i = 0; i < candidates.length; i++) {
+    var candidate = candidates[i], meta = candidate && candidate._meta;
+    var data = (meta && meta["garmin/chart"]) || (candidate && candidate["garmin/chart"]);
+    if (data && Array.isArray(data.labels) && Array.isArray(data.series)) return data;
+  }
+  var legacy = result && result.structuredContent;
+  return legacy && Array.isArray(legacy.labels) && Array.isArray(legacy.series) ? legacy : null;
+}
 
 function applyContext(ctx) {
   if (!ctx) return;
@@ -354,8 +365,8 @@ function start() {
       return;
     }
     if (msg.method === "ui/notifications/tool-result") {
-      var data = msg.params && msg.params.structuredContent;
-      if (data && data.labels) show(data);
+      var data = chartDataFromResult(msg.params, window.openai && window.openai.toolResponseMetadata);
+      if (data) show(data);
       else {
         document.getElementById("app").innerHTML = '<p class="range">No chart data in this result.</p>';
         reportSize();
@@ -366,7 +377,16 @@ function start() {
     }
   });
   if (window.ResizeObserver) new ResizeObserver(function () { reportSize(); }).observe(document.getElementById("app"));
-  window.addEventListener("openai:set_globals", function () { reportSize(); });
+  function globalsChanged() {
+    if (!current && window.openai) {
+      var data = chartDataFromResult({ structuredContent: window.openai.toolOutput },
+        window.openai.toolResponseMetadata);
+      if (data) show(data);
+    }
+    reportSize();
+  }
+  window.addEventListener("openai:set_globals", globalsChanged);
+  globalsChanged();
   window.addEventListener("resize", function () { reportSize(); });
   function initialized() {
     notify("ui/notifications/initialized");
@@ -384,7 +404,7 @@ function start() {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { renderChart: renderChart, renderView: renderView, renderHeader: renderHeader, parts: parts, niceStep: niceStep };
+  module.exports = { renderChart: renderChart, renderView: renderView, renderHeader: renderHeader, parts: parts, niceStep: niceStep, chartDataFromResult: chartDataFromResult };
 } else {
   start();
 }
