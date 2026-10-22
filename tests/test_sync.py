@@ -340,6 +340,26 @@ def test_activity_search_error_is_recorded(client: FakeClient, paths: DataPaths)
     assert [r["status"] for r in statuses] == ["error"]
 
 
+# --- one sync at a time
+
+
+def test_second_sync_is_refused_while_one_runs(client: FakeClient, paths: DataPaths) -> None:
+    with sync.sync_lock(paths.sync_lock), pytest.raises(sync.SyncAlreadyRunning):
+        run(client, paths)
+    assert client.calls == []
+    assert run(client, paths).ok  # lock released afterwards
+
+
+def test_lock_released_when_sync_fails(client: FakeClient, paths: DataPaths) -> None:
+    class Boom(FakeApi):
+        def call(self, request: Callable[[Any], Any]) -> Any:
+            raise RuntimeError("unexpected")
+
+    with pytest.raises(RuntimeError):
+        sync.run_sync(Boom(client), paths, today=TODAY, pause_s=0)
+    assert run(client, paths).ok
+
+
 # --- CLI
 
 
@@ -375,6 +395,18 @@ def test_cli_sync_after_rate_limit_says_how_to_continue(
     monkeypatch.setattr(sync.time, "sleep", lambda s: None)
     assert cli.main(["sync", "--days-back", "90"]) == 1
     assert "sync --days-back 90" in capsys.readouterr().err
+
+
+def test_cli_sync_when_another_is_running(
+    client: FakeClient,
+    paths: DataPaths,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli, "GarminApi", lambda: FakeApi(client))
+    with sync.sync_lock(cli.config.data_paths().sync_lock):
+        assert cli.main(["sync"]) == 1
+    assert "already running" in capsys.readouterr().err
 
 
 def test_cli_sync_without_key_explains(capsys: pytest.CaptureFixture[str]) -> None:

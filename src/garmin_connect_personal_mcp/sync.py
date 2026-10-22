@@ -11,8 +11,10 @@ back into per-day items, which are stored unchanged; see db.py.
 """
 
 import os
+import sys
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -79,6 +81,42 @@ MAX_ACTIVITY_PAGES = 200  # safety stop if the server ever ignores the offset
 
 class Api(Protocol):
     def call(self, request: Callable[[GarminPersonalApiClient], T]) -> T: ...
+
+
+class SyncAlreadyRunning(Exception):
+    """Another sync holds the lock (a scheduled run, another terminal, or the MCP server)."""
+
+
+@contextmanager
+def sync_lock(path: Path) -> Iterator[None]:
+    """Hold an OS-level lock for the duration of a sync.
+
+    The OS releases it if the process dies, so a crash never leaves a stale lock.
+    """
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with open(path, "a+b") as handle:
+        try:
+            if sys.platform == "win32":
+                import msvcrt
+
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            raise SyncAlreadyRunning(
+                "Another sync is already running. Wait for it to finish and try again."
+            ) from None
+        try:
+            yield
+        finally:
+            if sys.platform == "win32":
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle, fcntl.LOCK_UN)
 
 
 class SyncAborted(Exception):
@@ -347,13 +385,14 @@ def run_sync(
             time.sleep(pause_s)
 
     report = SyncReport()
-    conn = db.connect(paths.db)
-    try:
-        sync_daily(conn, api, report, today, days_back, pause, progress)
-        sync_activities(conn, api, report, today, days_back, pause, progress)
-        download_fit_files(conn, api, paths, report, pause, progress)
-    except SyncAborted as exc:
-        report.aborted = str(exc)
-    finally:
-        conn.close()
+    with sync_lock(paths.sync_lock):
+        conn = db.connect(paths.db)
+        try:
+            sync_daily(conn, api, report, today, days_back, pause, progress)
+            sync_activities(conn, api, report, today, days_back, pause, progress)
+            download_fit_files(conn, api, paths, report, pause, progress)
+        except SyncAborted as exc:
+            report.aborted = str(exc)
+        finally:
+            conn.close()
     return report

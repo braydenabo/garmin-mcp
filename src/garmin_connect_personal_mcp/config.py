@@ -35,6 +35,10 @@ class DataPaths:
     def log_dir(self) -> Path:
         return self.root / "logs"
 
+    @property
+    def sync_lock(self) -> Path:
+        return self.root / "sync.lock"
+
 
 def data_paths(env: Mapping[str, str] | None = None) -> DataPaths:
     """`GARMIN_MCP_DATA_DIR` if set, else the OS user data dir."""

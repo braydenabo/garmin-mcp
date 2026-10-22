@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from garmin_connect_personal_mcp import __version__, config
 from garmin_connect_personal_mcp.garmin_client import GarminApi, GarminError
 from garmin_connect_personal_mcp.progress import ProgressDisplay
-from garmin_connect_personal_mcp.sync import DAILY_DATASETS, run_sync
+from garmin_connect_personal_mcp.sync import DAILY_DATASETS, SyncAlreadyRunning, run_sync
 
 PROG = "garmin-connect-personal-mcp"
 
@@ -98,6 +98,9 @@ def cmd_sync(args: argparse.Namespace) -> int:
     with api:
         try:
             report = run_sync(api, paths, days_back=args.days_back, progress=display)
+        except SyncAlreadyRunning as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
         finally:
             display.close()
 
