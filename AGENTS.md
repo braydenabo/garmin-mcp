@@ -39,6 +39,6 @@ Never handle the user's API key yourself. The user saves it with `garmin-connect
 - Source in `src/garmin_connect_personal_mcp/`, tests in `tests/`, mirroring module names.
 - Tests never touch the network or the user's real data directory.
 - MCP tools are named `garmin_<verb>_<noun>`, use flat JSON input schemas (no `anyOf`/`oneOf`), put units in field names (`distance_km`, `hr_bpm`), and declare accurate annotations.
-- Tool names and arguments are public API: renaming one is a breaking change.
+- Tool names and arguments are public API: renaming one is a breaking change. `tests/snapshots/tools.json` pins every tool's schemas and annotations, and `docs/tools.md` is generated from it. After a deliberate tool change, run `uv run python scripts/gen_tools_doc.py` and review the diff.
 - User-facing errors say what to do next, e.g. "No data for 2026-10-21; last sync was 2026-10-19. Call garmin_sync."
 - Update `CHANGELOG.md` under "Unreleased" for user-visible changes.

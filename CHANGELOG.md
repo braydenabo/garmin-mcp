@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- `docs/tools.md`, a tools reference generated from the server, and a contract snapshot test so tool names, schemas and annotations can't change by accident.
 - MCP tool `garmin_sync` (incremental by default, backfill up to 90 days), a background sync when the server starts with data over a day old, and `serve --read-only`, `--no-auto-sync` and `--toolsets` (also settable through `GARMIN_MCP_READ_ONLY`, `GARMIN_MCP_AUTO_SYNC` and `GARMIN_MCP_TOOLSETS`).
 - MCP tools `garmin_list_activities` (newest first, filtered by date and type, paged) and `garmin_get_activity` (heart-rate zones, power, cadence, training effect, splits). Units are converted (km, minutes, km/h, min/km), and the owner's name, profile photos and GPS coordinates are never returned.
 - MCP tools `garmin_get_day` (sleep, HRV and daily summary for one date, with a per-dataset status: data, no_data, not_synced or sync_failed) and `garmin_get_trend` (one metric per day or per week, with summary stats). Dates accept `today` and `yesterday`.

@@ -1,0 +1,1417 @@
+[
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "What's in the archive: each dataset's date coverage and last sync, every metric with its unit, and activity counts. Call this first.",
+    "input_schema": {
+      "properties": {},
+      "title": "garmin_describe_dataArguments",
+      "type": "object"
+    },
+    "name": "garmin_describe_data",
+    "output_schema": {
+      "$defs": {
+        "DatasetCoverage": {
+          "properties": {
+            "dataset": {
+              "title": "Dataset",
+              "type": "string"
+            },
+            "days_with_data": {
+              "title": "Days With Data",
+              "type": "integer"
+            },
+            "first_date": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "First Date"
+            },
+            "last_date": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Date"
+            },
+            "last_synced_date": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Latest local date checked by sync",
+              "title": "Last Synced Date"
+            }
+          },
+          "required": [
+            "dataset",
+            "days_with_data",
+            "first_date",
+            "last_date",
+            "last_synced_date"
+          ],
+          "title": "DatasetCoverage",
+          "type": "object"
+        },
+        "MetricInfo": {
+          "properties": {
+            "dataset": {
+              "title": "Dataset",
+              "type": "string"
+            },
+            "description": {
+              "title": "Description",
+              "type": "string"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "numeric": {
+              "description": "Whether garmin_get_trend can chart it",
+              "title": "Numeric",
+              "type": "boolean"
+            },
+            "unit": {
+              "title": "Unit",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "dataset",
+            "unit",
+            "description",
+            "numeric"
+          ],
+          "title": "MetricInfo",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "activities_count": {
+          "title": "Activities Count",
+          "type": "integer"
+        },
+        "activities_first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Activities First Date"
+        },
+        "activities_last_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Activities Last Date"
+        },
+        "activity_types": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Activity count per type, for garmin_list_activities' activity_type filter",
+          "title": "Activity Types",
+          "type": "object"
+        },
+        "archive_exists": {
+          "title": "Archive Exists",
+          "type": "boolean"
+        },
+        "datasets": {
+          "items": {
+            "$ref": "#/$defs/DatasetCoverage"
+          },
+          "title": "Datasets",
+          "type": "array"
+        },
+        "last_sync_utc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Sync Utc"
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/MetricInfo"
+          },
+          "title": "Metrics",
+          "type": "array"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "archive_exists",
+        "last_sync_utc",
+        "datasets",
+        "activities_count",
+        "activities_first_date",
+        "activities_last_date",
+        "activity_types",
+        "metrics",
+        "notes"
+      ],
+      "title": "DataDescription",
+      "type": "object"
+    },
+    "title": "Describe the Garmin data"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "Full summary of one activity: duration, distance, pace or speed, heart rate and minutes per heart-rate zone, power, cadence, elevation, training effect, and splits. Use an activity_id from garmin_list_activities.",
+    "input_schema": {
+      "properties": {
+        "activity_id": {
+          "description": "From garmin_list_activities",
+          "title": "Activity Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "activity_id"
+      ],
+      "title": "garmin_get_activityArguments",
+      "type": "object"
+    },
+    "name": "garmin_get_activity",
+    "output_schema": {
+      "$defs": {
+        "Split": {
+          "properties": {
+            "avg_speed_kmh": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Avg Speed Kmh"
+            },
+            "distance_km": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Distance Km"
+            },
+            "duration_minutes": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Duration Minutes"
+            },
+            "split_type": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Split Type"
+            }
+          },
+          "required": [
+            "split_type",
+            "distance_km",
+            "duration_minutes",
+            "avg_speed_kmh"
+          ],
+          "title": "Split",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "activity_id": {
+          "title": "Activity Id",
+          "type": "integer"
+        },
+        "activity_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Activity Type"
+        },
+        "aerobic_training_effect": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "0-5",
+          "title": "Aerobic Training Effect"
+        },
+        "anaerobic_training_effect": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "0-5",
+          "title": "Anaerobic Training Effect"
+        },
+        "avg_hr_bpm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Avg Hr Bpm"
+        },
+        "avg_pace_min_per_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "On-foot sports only",
+          "title": "Avg Pace Min Per Km"
+        },
+        "avg_power_w": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Avg Power W"
+        },
+        "avg_run_cadence_spm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Avg Run Cadence Spm"
+        },
+        "avg_speed_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Avg Speed Kmh"
+        },
+        "calories_kcal": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Calories Kcal"
+        },
+        "distance_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Distance Km"
+        },
+        "duration_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration Minutes"
+        },
+        "elapsed_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Elapsed Minutes"
+        },
+        "elevation_gain_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Elevation Gain M"
+        },
+        "elevation_loss_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Elevation Loss M"
+        },
+        "fit_file_saved": {
+          "description": "Whether the original FIT file is in the archive",
+          "title": "Fit File Saved",
+          "type": "boolean"
+        },
+        "hr_zone_minutes": {
+          "description": "Minutes in heart-rate zones 1-5",
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Hr Zone Minutes",
+          "type": "array"
+        },
+        "lap_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Lap Count"
+        },
+        "location_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Approximate place name, if Garmin has one",
+          "title": "Location Name"
+        },
+        "max_hr_bpm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Max Hr Bpm"
+        },
+        "max_power_w": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Max Power W"
+        },
+        "max_speed_kmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Max Speed Kmh"
+        },
+        "moving_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Moving Minutes"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name"
+        },
+        "normalized_power_w": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Normalized Power W"
+        },
+        "splits": {
+          "items": {
+            "$ref": "#/$defs/Split"
+          },
+          "title": "Splits",
+          "type": "array"
+        },
+        "start_local": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Local start time, YYYY-MM-DDTHH:MM",
+          "title": "Start Local"
+        },
+        "steps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Steps"
+        },
+        "training_effect_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Training Effect Label"
+        },
+        "training_load": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Training Load"
+        }
+      },
+      "required": [
+        "activity_id",
+        "name",
+        "activity_type",
+        "start_local",
+        "duration_minutes",
+        "distance_km",
+        "avg_pace_min_per_km",
+        "avg_speed_kmh",
+        "avg_hr_bpm",
+        "max_hr_bpm",
+        "calories_kcal",
+        "elevation_gain_m",
+        "training_load",
+        "aerobic_training_effect",
+        "moving_minutes",
+        "elapsed_minutes",
+        "max_speed_kmh",
+        "avg_power_w",
+        "max_power_w",
+        "normalized_power_w",
+        "avg_run_cadence_spm",
+        "elevation_loss_m",
+        "steps",
+        "lap_count",
+        "anaerobic_training_effect",
+        "training_effect_label",
+        "hr_zone_minutes",
+        "location_name",
+        "splits",
+        "fit_file_saved"
+      ],
+      "title": "ActivityDetail",
+      "type": "object"
+    },
+    "title": "Get one activity"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "Sleep, HRV and daily summary (steps, resting heart rate, stress, Body Battery, calories) for one date, plus that day's activities. Each dataset has a status: data, no_data (checked, nothing recorded), not_synced or sync_failed. Missing values are null.",
+    "input_schema": {
+      "properties": {
+        "date": {
+          "default": "today",
+          "description": "YYYY-MM-DD, 'today' or 'yesterday'",
+          "title": "Date",
+          "type": "string"
+        }
+      },
+      "title": "garmin_get_dayArguments",
+      "type": "object"
+    },
+    "name": "garmin_get_day",
+    "output_schema": {
+      "$defs": {
+        "ActivityBrief": {
+          "properties": {
+            "activity_id": {
+              "title": "Activity Id",
+              "type": "integer"
+            },
+            "activity_type": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Activity Type"
+            },
+            "start_time_utc": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Time Utc"
+            }
+          },
+          "required": [
+            "activity_id",
+            "activity_type",
+            "start_time_utc"
+          ],
+          "title": "ActivityBrief",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "activities": {
+          "items": {
+            "$ref": "#/$defs/ActivityBrief"
+          },
+          "title": "Activities",
+          "type": "array"
+        },
+        "daily_summary": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Daily Summary"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "hrv": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Hrv"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "sleep": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sleep"
+        },
+        "status": {
+          "additionalProperties": {
+            "enum": [
+              "data",
+              "no_data",
+              "not_synced",
+              "sync_failed"
+            ],
+            "type": "string"
+          },
+          "description": "Per dataset: data, no_data (checked, nothing recorded), not_synced, or sync_failed",
+          "title": "Status",
+          "type": "object"
+        }
+      },
+      "required": [
+        "date",
+        "status",
+        "sleep",
+        "hrv",
+        "daily_summary",
+        "activities",
+        "notes"
+      ],
+      "title": "DayResult",
+      "type": "object"
+    },
+    "title": "Get one day"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "One metric over a date range, per day or per week (weekly values are means), with mean, min, max, first and last. Days without data are skipped and counted. Defaults to the last 30 days.",
+    "input_schema": {
+      "properties": {
+        "bucket": {
+          "default": "day",
+          "description": "Points per day, or weekly means",
+          "enum": [
+            "day",
+            "week"
+          ],
+          "title": "Bucket",
+          "type": "string"
+        },
+        "end": {
+          "default": "today",
+          "description": "YYYY-MM-DD, 'today' or 'yesterday'",
+          "title": "End",
+          "type": "string"
+        },
+        "metric": {
+          "description": "Metric name; see garmin_describe_data",
+          "enum": [
+            "awake_minutes",
+            "body_battery_charged",
+            "body_battery_drained",
+            "body_battery_high",
+            "body_battery_low",
+            "calories_active_kcal",
+            "calories_total_kcal",
+            "deep_sleep_minutes",
+            "distance_km",
+            "floors_climbed",
+            "hrv_baseline_high_ms",
+            "hrv_baseline_low_ms",
+            "hrv_last_night_ms",
+            "hrv_weekly_avg_ms",
+            "intensity_minutes_moderate",
+            "intensity_minutes_vigorous",
+            "light_sleep_minutes",
+            "max_hr_bpm",
+            "min_hr_bpm",
+            "rem_sleep_minutes",
+            "respiration_avg_brpm",
+            "resting_hr_bpm",
+            "sleep_avg_hr_bpm",
+            "sleep_avg_respiration_brpm",
+            "sleep_hours",
+            "sleep_score",
+            "step_goal",
+            "steps",
+            "stress_avg",
+            "stress_max"
+          ],
+          "title": "Metric",
+          "type": "string"
+        },
+        "start": {
+          "default": "",
+          "description": "YYYY-MM-DD, 'today' or 'yesterday'. Default: 30 days ago",
+          "title": "Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric"
+      ],
+      "title": "garmin_get_trendArguments",
+      "type": "object"
+    },
+    "name": "garmin_get_trend",
+    "output_schema": {
+      "$defs": {
+        "TrendPoint": {
+          "properties": {
+            "days_with_data": {
+              "title": "Days With Data",
+              "type": "integer"
+            },
+            "period_start": {
+              "description": "The day, or the Monday that starts the week",
+              "title": "Period Start",
+              "type": "string"
+            },
+            "value": {
+              "title": "Value",
+              "type": "number"
+            }
+          },
+          "required": [
+            "period_start",
+            "value",
+            "days_with_data"
+          ],
+          "title": "TrendPoint",
+          "type": "object"
+        },
+        "TrendStats": {
+          "properties": {
+            "days_with_data": {
+              "title": "Days With Data",
+              "type": "integer"
+            },
+            "first": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Earliest daily value in the range",
+              "title": "First"
+            },
+            "last": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Latest daily value in the range",
+              "title": "Last"
+            },
+            "max": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max"
+            },
+            "mean": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mean"
+            },
+            "min": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min"
+            }
+          },
+          "required": [
+            "days_with_data",
+            "mean",
+            "min",
+            "max",
+            "first",
+            "last"
+          ],
+          "title": "TrendStats",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "bucket": {
+          "enum": [
+            "day",
+            "week"
+          ],
+          "title": "Bucket",
+          "type": "string"
+        },
+        "days_without_data": {
+          "title": "Days Without Data",
+          "type": "integer"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "end": {
+          "title": "End",
+          "type": "string"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/TrendPoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "start": {
+          "title": "Start",
+          "type": "string"
+        },
+        "stats": {
+          "$ref": "#/$defs/TrendStats"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric",
+        "unit",
+        "description",
+        "start",
+        "end",
+        "bucket",
+        "points",
+        "stats",
+        "days_without_data",
+        "notes"
+      ],
+      "title": "Trend",
+      "type": "object"
+    },
+    "title": "Get a metric over time"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "Workouts newest first, with headline stats (duration, distance, pace or speed, heart rate, calories, training load). Filter by date range and type; the type matches partially, so 'running' also finds trail runs. Pages via next_cursor. Defaults to the last 30 days.",
+    "input_schema": {
+      "properties": {
+        "activity_type": {
+          "default": "",
+          "description": "e.g. running, cycling, swimming; empty for all",
+          "title": "Activity Type",
+          "type": "string"
+        },
+        "cursor": {
+          "default": "",
+          "description": "next_cursor from the previous page",
+          "title": "Cursor",
+          "type": "string"
+        },
+        "end": {
+          "default": "today",
+          "description": "YYYY-MM-DD, 'today' or 'yesterday'",
+          "title": "End",
+          "type": "string"
+        },
+        "limit": {
+          "default": 20,
+          "description": "Page size, 1-100",
+          "title": "Limit",
+          "type": "integer"
+        },
+        "start": {
+          "default": "",
+          "description": "YYYY-MM-DD, 'today' or 'yesterday'. Default: 30 days ago",
+          "title": "Start",
+          "type": "string"
+        }
+      },
+      "title": "garmin_list_activitiesArguments",
+      "type": "object"
+    },
+    "name": "garmin_list_activities",
+    "output_schema": {
+      "$defs": {
+        "ActivitySummary": {
+          "properties": {
+            "activity_id": {
+              "title": "Activity Id",
+              "type": "integer"
+            },
+            "activity_type": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Activity Type"
+            },
+            "aerobic_training_effect": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "0-5",
+              "title": "Aerobic Training Effect"
+            },
+            "avg_hr_bpm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Avg Hr Bpm"
+            },
+            "avg_pace_min_per_km": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "On-foot sports only",
+              "title": "Avg Pace Min Per Km"
+            },
+            "avg_speed_kmh": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Avg Speed Kmh"
+            },
+            "calories_kcal": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Calories Kcal"
+            },
+            "distance_km": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Distance Km"
+            },
+            "duration_minutes": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Duration Minutes"
+            },
+            "elevation_gain_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Elevation Gain M"
+            },
+            "max_hr_bpm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Hr Bpm"
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            },
+            "start_local": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Local start time, YYYY-MM-DDTHH:MM",
+              "title": "Start Local"
+            },
+            "training_load": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Training Load"
+            }
+          },
+          "required": [
+            "activity_id",
+            "name",
+            "activity_type",
+            "start_local",
+            "duration_minutes",
+            "distance_km",
+            "avg_pace_min_per_km",
+            "avg_speed_kmh",
+            "avg_hr_bpm",
+            "max_hr_bpm",
+            "calories_kcal",
+            "elevation_gain_m",
+            "training_load",
+            "aerobic_training_effect"
+          ],
+          "title": "ActivitySummary",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "activities": {
+          "items": {
+            "$ref": "#/$defs/ActivitySummary"
+          },
+          "title": "Activities",
+          "type": "array"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Pass as cursor for the next page; null at the end",
+          "title": "Next Cursor"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "total": {
+          "description": "Activities matching the filters",
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "activities",
+        "total",
+        "next_cursor",
+        "notes"
+      ],
+      "title": "ActivityPage",
+      "type": "object"
+    },
+    "title": "List activities"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": true,
+      "read_only_hint": false
+    },
+    "description": "Download new data from Garmin into the archive. Use it when garmin_get_day says not_synced or the latest data is old. By default it resumes from the last sync (a few seconds). days_back re-checks up to 90 recent days.",
+    "input_schema": {
+      "properties": {
+        "days_back": {
+          "default": 0,
+          "description": "0 to resume (default), or 1-90 days to re-check",
+          "title": "Days Back",
+          "type": "integer"
+        }
+      },
+      "title": "garmin_syncArguments",
+      "type": "object"
+    },
+    "name": "garmin_sync",
+    "output_schema": {
+      "properties": {
+        "activities_listed": {
+          "default": 0,
+          "title": "Activities Listed",
+          "type": "integer"
+        },
+        "already_running": {
+          "default": false,
+          "title": "Already Running",
+          "type": "boolean"
+        },
+        "days_saved": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Days Saved",
+          "type": "object"
+        },
+        "days_without_data": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Days Without Data",
+          "type": "object"
+        },
+        "errors": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "fit_files_saved": {
+          "default": 0,
+          "title": "Fit Files Saved",
+          "type": "integer"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok",
+        "message"
+      ],
+      "title": "SyncResult",
+      "type": "object"
+    },
+    "title": "Sync from Garmin"
+  }
+]
