@@ -1,0 +1,53 @@
+# --- Development plans (never published) ---
+.plans/
+*Build Plan*.md
+*.plan.md
+PLAN*.md
+
+# --- Secrets and credentials ---
+.env
+.env.*
+!.env.example
+*connect-personal-api-key*
+*.key
+*.pem
+*token*.json
+*credentials*.json
+secrets/
+
+# --- Personal health data ---
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.fit
+*.FIT
+*.zip
+*.tcx
+*.gpx
+logs/
+*.log
+
+# --- Local agent / editor files ---
+CLAUDE.local.md
+.claude/settings.local.json
+.vscode/
+.idea/
+.DS_Store
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
