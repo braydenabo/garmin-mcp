@@ -409,6 +409,32 @@ def test_cli_sync_when_another_is_running(
     assert "already running" in capsys.readouterr().err
 
 
+def test_cli_sync_ctrl_c_stops_cleanly(
+    client: FakeClient, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls = 0
+
+    class Interrupted(FakeApi):
+        def call(self, request: Callable[[Any], Any]) -> Any:
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                raise KeyboardInterrupt
+            return super().call(request)
+
+    monkeypatch.setattr(cli, "GarminApi", lambda: Interrupted(client))
+    monkeypatch.setattr(sync.time, "sleep", lambda s: None)
+    assert cli.main(["sync", "--days-back", "5"]) == 130
+    out = capsys.readouterr().out
+    assert "Stopped. Everything saved so far is kept" in out
+    assert "sync --days-back 5" in out
+    conn = db.connect(cli.config.data_paths().db)
+    assert db.get_daily(conn, "sleep", date.today()) is not None  # finished work kept
+    assert db.last_synced_date(conn, "stress") is None  # interrupted dataset untouched
+    with sync.sync_lock(cli.config.data_paths().sync_lock):
+        pass  # lock was released
+
+
 def test_cli_sync_without_key_explains(capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(["sync"]) == 1
     assert "init" in capsys.readouterr().err

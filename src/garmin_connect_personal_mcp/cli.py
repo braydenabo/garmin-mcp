@@ -95,12 +95,17 @@ def cmd_sync(args: argparse.Namespace) -> int:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     display = ProgressDisplay(sys.stdout)
+    rerun = PROG + " sync" + (f" --days-back {args.days_back}" if args.days_back else "")
     with api:
         try:
             report = run_sync(api, paths, days_back=args.days_back, progress=display)
         except SyncAlreadyRunning as exc:
             print(f"Error: {exc}", file=sys.stderr)
             return 1
+        except KeyboardInterrupt:
+            display.close()
+            print(f"Stopped. Everything saved so far is kept. To continue, run: {rerun}")
+            return 130
         finally:
             display.close()
 
@@ -114,7 +119,6 @@ def cmd_sync(args: argparse.Namespace) -> int:
         print(f"Error: {error}", file=sys.stderr)
     if report.aborted:
         print(f"Stopped early: {report.aborted}", file=sys.stderr)
-        rerun = PROG + " sync" + (f" --days-back {args.days_back}" if args.days_back else "")
         print(f"Everything saved so far is kept. To continue later, run: {rerun}", file=sys.stderr)
     print(f"Archive: {paths.db}")
     return 0 if report.ok else 1
