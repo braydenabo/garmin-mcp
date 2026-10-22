@@ -198,3 +198,11 @@ def last_synced_date(conn: sqlite3.Connection, dataset: str) -> date | None:
         (_dataset(dataset),),
     ).fetchone()
     return None if row["d"] is None else date.fromisoformat(row["d"])
+
+
+def last_sync_time(conn: sqlite3.Connection) -> str | None:
+    """When any dataset last synced without error (UTC ISO 8601), or None if never."""
+    row = conn.execute(
+        "SELECT MAX(synced_at) AS t FROM sync_log WHERE status != 'error'"
+    ).fetchone()
+    return None if row["t"] is None else str(row["t"])

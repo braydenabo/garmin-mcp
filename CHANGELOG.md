@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- `schedule install | status | remove`: run `sync` once a day with the OS scheduler (launchd on macOS, a systemd user timer or cron on Linux, Task Scheduler on Windows). Output goes to `logs/sync.log`; the API key is never written into a scheduler file.
 - `sync --days-back` accepts 1 to 3650 days (10 years), to catch typos early.
 - Ctrl-C during `sync` stops cleanly instead of printing a traceback, keeps everything saved so far, and prints the command to continue.
 - Only one sync runs at a time: a second one (another terminal, or a scheduled run) exits with a clear message. The lock is released by the OS even if a sync crashes.

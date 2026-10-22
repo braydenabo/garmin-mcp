@@ -5,7 +5,7 @@ import getpass
 import sys
 from collections.abc import Sequence
 
-from garmin_connect_personal_mcp import __version__, config
+from garmin_connect_personal_mcp import __version__, config, db, schedule
 from garmin_connect_personal_mcp.garmin_client import GarminApi, GarminError
 from garmin_connect_personal_mcp.progress import ProgressDisplay
 from garmin_connect_personal_mcp.sync import DAILY_DATASETS, SyncAlreadyRunning, run_sync
@@ -51,6 +51,23 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help=f"sync the last N days (including today) instead of resuming; at most {MAX_DAYS_BACK}",
     )
+
+    sched = commands.add_parser(
+        "schedule",
+        help="run sync automatically once a day",
+        description=(
+            "Run `sync` once a day with your operating system's scheduler (launchd on macOS, "
+            "systemd or cron on Linux, Task Scheduler on Windows). Output goes to "
+            "logs/sync.log in the data folder."
+        ),
+    )
+    actions = sched.add_subparsers(dest="action", metavar="ACTION", required=True)
+    install = actions.add_parser("install", help="install or update the daily sync")
+    install.add_argument(
+        "--time", default="06:00", metavar="HH:MM", help="local time to run (default 06:00)"
+    )
+    actions.add_parser("remove", help="remove the daily sync")
+    actions.add_parser("status", help="show whether the daily sync is installed")
     return parser
 
 
@@ -81,6 +98,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         return 1
     print(f"API key saved to {saved} (readable only by you).")
     print(f"Next, download your data: {PROG} sync")
+    print(f"Then keep it up to date automatically: {PROG} schedule install")
     return 0
 
 
@@ -125,6 +143,71 @@ def cmd_sync(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def _temporary_python() -> bool:
+    """True when running from uvx's cache, which can be cleared at any time."""
+    return "archive-v" in sys.executable
+
+
+def cmd_schedule(args: argparse.Namespace) -> int:
+    paths = config.data_paths()
+    try:
+        backend = schedule.choose_backend()
+        if args.action == "install":
+            return _schedule_install(args, backend, paths)
+        if args.action == "remove":
+            removed = backend.remove(paths)
+            print("Daily sync removed." if removed else "No daily sync was installed.")
+            return 0
+    except (schedule.ScheduleError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    status = backend.status(paths)
+    print(f"Daily sync: {status.detail} [{status.backend}]")
+    if not status.installed:
+        print(f"Turn it on with: {PROG} schedule install")
+    last = None
+    if paths.db.exists():
+        conn = db.connect_readonly(paths.db)
+        try:
+            last = db.last_sync_time(conn)
+        finally:
+            conn.close()
+    print(f"Last successful sync: {last or 'never'} (UTC)")
+    print(f"Log: {paths.log_dir / 'sync.log'}")
+    return 0
+
+
+def _schedule_install(
+    args: argparse.Namespace, backend: schedule.Backend, paths: config.DataPaths
+) -> int:
+    hour, minute = schedule.parse_time(args.time)
+    if not config.api_key_file().exists():
+        if config.api_key_from_env():
+            print(
+                f"Error: your API key is only in ${config.API_KEY_ENV_VAR}, which a scheduled "
+                f"job can't see. Save it to a file first: {PROG} init",
+                file=sys.stderr,
+            )
+        else:
+            print(f"Error: no API key saved yet. Run: {PROG} init", file=sys.stderr)
+        return 1
+    if _temporary_python():
+        print(
+            "Warning: this is running from uvx's temporary cache, which can be cleared at any "
+            "time, and the scheduled job would stop working. For a lasting install run: "
+            "uv tool install garmin-connect-personal-mcp, then "
+            f"{PROG} schedule install",
+            file=sys.stderr,
+        )
+    config.ensure_data_dir(paths)
+    job = schedule.make_job(paths, hour, minute)
+    where = backend.install(job, paths)
+    print(f"Daily sync installed: every day at {job.time} ({where}).")
+    print(f"Output is appended to {job.log_file}")
+    print(f"Check it with: {PROG} schedule status")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -132,5 +215,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_init(args)
     if args.command == "sync":
         return cmd_sync(args)
+    if args.command == "schedule":
+        return cmd_schedule(args)
     parser.print_help()
     return 0

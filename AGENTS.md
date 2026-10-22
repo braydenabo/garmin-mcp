@@ -23,6 +23,15 @@ uv run mypy                  # strict
 3. **Never commit planning documents.** Plans stay in the gitignored `.plans/` directory.
 4. Do not weaken `.gitignore`, `scripts/check_*.py`, `.pre-commit-config.yaml` or the CI guard job to get a commit through.
 
+## Helping a user set it up
+
+These commands are safe for a coding agent to run when the user asks:
+
+- `garmin-connect-personal-mcp sync [--days-back N]` downloads data into the user's local archive.
+- `garmin-connect-personal-mcp schedule install [--time HH:MM]` installs a daily sync with the OS scheduler. It's a lasting change to the user's machine, so run it only when the user asks for automatic syncing. `schedule status` and `schedule remove` check or undo it.
+
+Never handle the user's API key yourself. The user saves it with `garmin-connect-personal-mcp init` at the hidden prompt. MCP tools must never install or change schedules; they only point the user to the command.
+
 ## Conventions
 
 - Source in `src/garmin_connect_personal_mcp/`, tests in `tests/`, mirroring module names.

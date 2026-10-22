@@ -2,11 +2,12 @@ import plistlib
 import shlex
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 import pytest
 
-from garmin_connect_personal_mcp import schedule
+from garmin_connect_personal_mcp import cli, config, db, schedule
 from garmin_connect_personal_mcp.config import DataPaths
 
 PATHS = DataPaths(Path("/data dir/garmin"))
@@ -252,3 +253,91 @@ def test_choose_backend(
     monkeypatch.setattr(schedule.shutil, "which", lambda name: None)
     with pytest.raises(schedule.ScheduleError, match="own scheduler"):
         schedule.choose_backend("linux", tmp_path, runner)
+
+
+# --- CLI
+
+
+@pytest.fixture
+def launchd(
+    tmp_path: Path, runner: FakeRunner, monkeypatch: pytest.MonkeyPatch
+) -> schedule.Launchd:
+    backend = schedule.Launchd(tmp_path / "fakehome", runner)
+    monkeypatch.setattr(schedule, "choose_backend", lambda: backend)
+    return backend
+
+
+def test_cli_install_needs_a_saved_key(
+    launchd: schedule.Launchd, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli.main(["schedule", "install"]) == 1
+    assert "Run: garmin-connect-personal-mcp init" in capsys.readouterr().err
+    assert not launchd.plist.exists()
+
+
+def test_cli_install_refuses_env_only_key(
+    launchd: schedule.Launchd,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("GARMIN_PERSONAL_API_KEY", "fake-key-123")
+    assert cli.main(["schedule", "install"]) == 1
+    assert "can't see" in capsys.readouterr().err
+
+
+def test_cli_install_status_remove(
+    launchd: schedule.Launchd, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config.save_api_key("fake-key-123")
+    assert cli.main(["schedule", "status"]) == 0
+    out = capsys.readouterr().out
+    assert "not installed" in out and "schedule install" in out
+    assert "Last successful sync: never" in out
+
+    assert cli.main(["schedule", "install", "--time", "07:30"]) == 0
+    out = capsys.readouterr().out
+    assert "every day at 07:30" in out and "sync.log" in out
+    assert "fake-key-123" not in launchd.plist.read_text()
+
+    conn = db.connect(config.data_paths().db)
+    db.record_sync(conn, "sleep", date(2026, 3, 1), "ok")
+    conn.commit()
+    assert cli.main(["schedule", "status"]) == 0
+    out = capsys.readouterr().out
+    assert "daily at 07:30 (loaded) [launchd]" in out
+    assert "Last successful sync: never" not in out
+
+    assert cli.main(["schedule", "remove"]) == 0
+    assert "removed" in capsys.readouterr().out
+    assert cli.main(["schedule", "remove"]) == 0
+    assert "No daily sync" in capsys.readouterr().out
+
+
+def test_cli_install_rejects_bad_time(
+    launchd: schedule.Launchd, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config.save_api_key("fake-key-123")
+    assert cli.main(["schedule", "install", "--time", "25:00"]) == 1
+    assert "HH:MM" in capsys.readouterr().err
+
+
+def test_cli_install_warns_about_uvx_cache(
+    launchd: schedule.Launchd,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config.save_api_key("fake-key-123")
+    monkeypatch.setattr(cli.sys, "executable", "/Users/x/.cache/uv/archive-v0/abc/bin/python")
+    assert cli.main(["schedule", "install"]) == 0
+    assert "uv tool install" in capsys.readouterr().err
+
+
+def test_cli_schedule_without_a_scheduler(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def none() -> schedule.Backend:
+        raise schedule.ScheduleError("No supported scheduler found")
+
+    monkeypatch.setattr(schedule, "choose_backend", none)
+    assert cli.main(["schedule", "status"]) == 1
+    assert "No supported scheduler" in capsys.readouterr().err

@@ -111,3 +111,11 @@ def test_readonly_connection_cannot_write(tmp_path: Path) -> None:
 def test_readonly_missing_archive_explains_fix(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match="init"):
         db.connect_readonly(tmp_path / "missing.db")
+
+
+def test_last_sync_time_ignores_errors(conn: sqlite3.Connection) -> None:
+    assert db.last_sync_time(conn) is None
+    db.record_sync(conn, "sleep", DAY, "error", "HTTP 500")
+    assert db.last_sync_time(conn) is None
+    db.record_sync(conn, "hrv", DAY, "empty")
+    assert db.last_sync_time(conn) is not None
