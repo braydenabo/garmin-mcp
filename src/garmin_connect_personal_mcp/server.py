@@ -19,7 +19,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
-from garmin_connect_personal_mcp import __version__, db, metrics
+from garmin_connect_personal_mcp import __version__, activities, db, metrics
 from garmin_connect_personal_mcp.config import DataPaths
 
 PROG = "garmin-connect-personal-mcp"
@@ -66,6 +66,9 @@ class DataDescription(BaseModel):
     activities_count: int
     activities_first_date: str | None
     activities_last_date: str | None
+    activity_types: dict[str, int] = Field(
+        description="Activity count per type, for garmin_list_activities' activity_type filter"
+    )
     metrics: list[MetricInfo]
     notes: list[str]
 
@@ -241,6 +244,60 @@ def get_trend(
     )
 
 
+MAX_PAGE_SIZE = 100
+
+
+class ActivityPage(BaseModel):
+    activities: list[activities.ActivitySummary]
+    total: int = Field(description="Activities matching the filters")
+    next_cursor: str | None = Field(description="Pass as cursor for the next page; null at the end")
+    notes: list[str]
+
+
+def list_activities(
+    paths: DataPaths, start: date, end: date, activity_type: str, limit: int, cursor: str
+) -> ActivityPage:
+    if not 1 <= limit <= MAX_PAGE_SIZE:
+        raise ToolError(f"limit must be between 1 and {MAX_PAGE_SIZE}.")
+    if end < start:
+        raise ToolError("end is before start.")
+    try:
+        offset = int(cursor) if cursor else 0
+    except ValueError:
+        raise ToolError("Invalid cursor; pass the next_cursor from the previous page.") from None
+    with open_archive(paths) as conn:
+        if conn is None:
+            raise ToolError(f"No data has been synced yet. The user can run `{PROG} sync`.")
+        page, total = activities.list_rows(conn, start, end, activity_type, limit, offset)
+        types = activities.type_counts(conn) if total == 0 and activity_type else {}
+    notes = []
+    if total == 0 and types:
+        notes.append(
+            f"No {activity_type!r} activities in range. Types in the archive: {', '.join(types)}."
+        )
+    elif total == 0:
+        notes.append("No activities in this range. Calling garmin_sync fetches recent ones.")
+    more = offset + len(page) < total
+    return ActivityPage(
+        activities=page,
+        total=total,
+        next_cursor=str(offset + len(page)) if more else None,
+        notes=notes,
+    )
+
+
+def get_activity(paths: DataPaths, activity_id: int) -> activities.ActivityDetail:
+    with open_archive(paths) as conn:
+        if conn is None:
+            raise ToolError(f"No data has been synced yet. The user can run `{PROG} sync`.")
+        found = activities.get_row(conn, activity_id)
+    if found is None:
+        raise ToolError(
+            f"No activity {activity_id} in the archive. garmin_list_activities shows the IDs."
+        )
+    return found
+
+
 def local_today() -> date:
     return datetime.now().astimezone().date()
 
@@ -274,6 +331,7 @@ def describe_data(paths: DataPaths) -> DataDescription:
                 activities_count=0,
                 activities_first_date=None,
                 activities_last_date=None,
+                activity_types={},
                 metrics=metric_list,
                 notes=[f"No data has been synced yet. The user can run `{PROG} sync`.", *NOTES],
             )
@@ -296,6 +354,7 @@ def describe_data(paths: DataPaths) -> DataDescription:
             activities_count=count,
             activities_first_date=first,
             activities_last_date=last,
+            activity_types=activities.type_counts(conn),
             metrics=metric_list,
             notes=NOTES,
         )
@@ -367,5 +426,47 @@ def build_server(paths: DataPaths, today: Callable[[], date] = local_today) -> M
         end_date = parse_date(end, now)
         start_date = parse_date(start, now) if start else end_date - timedelta(days=29)
         return get_trend(paths, metric, start_date, end_date, bucket)
+
+    @server.tool(
+        name="garmin_list_activities",
+        title="List activities",
+        description=(
+            "Workouts newest first, with headline stats (duration, distance, pace or speed, "
+            "heart rate, calories, training load). Filter by date range and type; the type "
+            "matches partially, so 'running' also finds trail runs. Pages via next_cursor. "
+            "Defaults to the last 30 days."
+        ),
+        annotations=READ_ONLY,
+    )
+    def garmin_list_activities(
+        start: Annotated[
+            str, Field(description="YYYY-MM-DD, 'today' or 'yesterday'. Default: 30 days ago")
+        ] = "",
+        end: Annotated[str, Field(description="YYYY-MM-DD, 'today' or 'yesterday'")] = "today",
+        activity_type: Annotated[
+            str, Field(description="e.g. running, cycling, swimming; empty for all")
+        ] = "",
+        limit: Annotated[int, Field(description=f"Page size, 1-{MAX_PAGE_SIZE}")] = 20,
+        cursor: Annotated[str, Field(description="next_cursor from the previous page")] = "",
+    ) -> ActivityPage:
+        now = today()
+        end_date = parse_date(end, now)
+        start_date = parse_date(start, now) if start else end_date - timedelta(days=29)
+        return list_activities(paths, start_date, end_date, activity_type, limit, cursor)
+
+    @server.tool(
+        name="garmin_get_activity",
+        title="Get one activity",
+        description=(
+            "Full summary of one activity: duration, distance, pace or speed, heart rate and "
+            "minutes per heart-rate zone, power, cadence, elevation, training effect, and "
+            "splits. Use an activity_id from garmin_list_activities."
+        ),
+        annotations=READ_ONLY,
+    )
+    def garmin_get_activity(
+        activity_id: Annotated[int, Field(description="From garmin_list_activities")],
+    ) -> activities.ActivityDetail:
+        return get_activity(paths, activity_id)
 
     return server
