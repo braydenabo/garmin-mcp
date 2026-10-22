@@ -1,0 +1,68 @@
+[project]
+name = "garmin-connect-personal-mcp"
+dynamic = ["version"]
+description = "Unofficial MCP server for your own Garmin Connect data, via Garmin's Personal API and a local SQLite archive."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Brayden Abo" }]
+requires-python = ">=3.12"
+keywords = ["mcp", "model-context-protocol", "garmin", "garmin-connect", "fitness", "health", "llm"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/braydenabo/garmin-mcp"
+Issues = "https://github.com/braydenabo/garmin-mcp/issues"
+Changelog = "https://github.com/braydenabo/garmin-mcp/blob/main/CHANGELOG.md"
+
+[project.scripts]
+garmin-connect-personal-mcp = "garmin_connect_personal_mcp.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "pre-commit>=4.0",
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "ruff>=0.12",
+]
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/garmin_connect_personal_mcp/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+exclude = [".plans", "data", "*.db", "*.fit", "*.zip"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S603"]
+"scripts/**" = ["S603", "S607"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=garmin_connect_personal_mcp --cov-report=term-missing --cov-fail-under=80"
