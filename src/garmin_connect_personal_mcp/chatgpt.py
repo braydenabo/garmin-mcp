@@ -93,7 +93,9 @@ def _profile_exists(executable: str, profile: str) -> bool:
         raise OSError("Could not read tunnel-client profile list.") from None
 
 
-def _check_authentication(executable: str, profile: str, env: dict[str, str]) -> bool:
+def _check_authentication(
+    executable: str, profile: str, env: dict[str, str], *, running: bool = False
+) -> bool:
     """Check metadata access with the exact runtime key, without exposing subprocess output."""
     checked = subprocess.run(  # noqa: S603
         [
@@ -104,7 +106,10 @@ def _check_authentication(executable: str, profile: str, env: dict[str, str]) ->
             "--json",
             "--control-plane.api-key",
             f"env:{KEY_ENV}",
-        ],
+        ]
+        # Doctor binds a listener to test its availability. A running daemon already
+        # owns its configured port; probe an ephemeral port without changing its profile.
+        + (["--health.listen-addr", "127.0.0.1:0"] if running else []),
         env=env,
         capture_output=True,
         text=True,

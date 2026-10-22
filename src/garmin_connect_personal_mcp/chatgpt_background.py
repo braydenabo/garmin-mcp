@@ -177,7 +177,9 @@ def _runtime_env(profile: str) -> dict[str, str]:
     return env
 
 
-def _check(executable: str, profile: str, data_dir: str | None = None) -> dict[str, str]:
+def _check(
+    executable: str, profile: str, data_dir: str | None = None, *, running: bool = False
+) -> dict[str, str]:
     paths = config.DataPaths(Path(data_dir)) if data_dir else config.data_paths()
     if not paths.db.is_file():
         raise BackgroundError(f"Archive missing. Run: {PROG} init, then {PROG} sync")
@@ -185,10 +187,10 @@ def _check(executable: str, profile: str, data_dir: str | None = None) -> dict[s
         raise BackgroundError(f"Tunnel profile missing. Run: {PROG} setup-chatgpt --no-start")
     env = _runtime_env(profile)
     env[config.DATA_DIR_ENV_VAR] = str(paths.root.absolute())
-    if not chatgpt._check_authentication(executable, profile, env):
+    if not chatgpt._check_authentication(executable, profile, env, running=running):
         raise BackgroundError(
-            f"Tunnel access check failed. Check your connection, or run: {PROG} "
-            f"setup-chatgpt --profile {profile} --replace-key --no-start"
+            "Tunnel checks failed. Follow the diagnostic above. A local configuration failure "
+            "does not mean your API key was rejected."
         )
     return env
 
@@ -215,17 +217,25 @@ def manage(action: str, *, profile: str, check: bool = False, client: str | None
                 return 0
             loaded = agent.loaded()
             if loaded.returncode:
-                print("Installed, stopped. Use chatgpt-background start; login also starts it.")
+                print(
+                    f"Installed, stopped. Run: {PROG} chatgpt-background start --profile {profile}"
+                )
             elif re.search(r"^\s*state = running\s*$", loaded.stdout, re.MULTILINE):
                 print("Background process is running; tunnel connectivity is not yet verified.")
             else:
                 print(
                     "Agent loaded but not running; macOS retries with a 60-second launch throttle."
                 )
-                print("Run chatgpt-background status --check for setup/authentication diagnostics.")
+                print(f"Check: {PROG} chatgpt-background status --profile {profile} --check")
             if check:
                 executable = spec["ProgramArguments"][-1]
-                _check(executable, profile, spec["EnvironmentVariables"][config.DATA_DIR_ENV_VAR])
+                _check(
+                    executable,
+                    profile,
+                    spec["EnvironmentVariables"][config.DATA_DIR_ENV_VAR],
+                    running=loaded.returncode == 0
+                    and bool(re.search(r"^\s*state = running\s*$", loaded.stdout, re.MULTILINE)),
+                )
                 print("Profile and metadata access OK; test a tool in ChatGPT to finish.")
             return 0
         if action == "stop":
@@ -263,10 +273,16 @@ def manage(action: str, *, profile: str, check: bool = False, client: str | None
         if not executable:
             raise BackgroundError("Not installed. Run chatgpt-background install first.")
         spec = agent.spec() if action == "start" else None
+        current = agent.loaded() if action == "start" else None
         env = _check(
             executable,
             profile,
             spec["EnvironmentVariables"][config.DATA_DIR_ENV_VAR] if spec else None,
+            running=bool(
+                current
+                and current.returncode == 0
+                and re.search(r"^\s*state = running\s*$", current.stdout, re.MULTILINE)
+            ),
         )
         try:
             with sync_lock(tunnel_process.lock_path(profile, env)):
@@ -283,7 +299,8 @@ def manage(action: str, *, profile: str, check: bool = False, client: str | None
         else:
             agent.start()
         print("Background startup enabled. macOS will run the tunnel now and at login.")
-        print("Check: chatgpt-background status --check. Your computer must stay awake and online.")
+        print(f"Check: {PROG} chatgpt-background status --profile {profile} --check")
+        print("Your computer must stay awake and online.")
         return 0
     except (BackgroundError, tunnel_credentials.CredentialError) as exc:
         print(str(exc), file=sys.stderr)

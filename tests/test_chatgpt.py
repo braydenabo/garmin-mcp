@@ -337,8 +337,9 @@ def test_replace_key_bypasses_environment_and_saved_credentials(
 
 
 @pytest.mark.parametrize("status", [0, 401, 403])
+@pytest.mark.parametrize("running", [False, True])
 def test_authenticated_check_uses_runtime_key_and_redacts_errors(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], status: int
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], status: int, running: bool
 ) -> None:
     calls: list[tuple[list[str], dict[str, Any]]] = []
 
@@ -358,7 +359,12 @@ def test_authenticated_check_uses_runtime_key_and_redacts_errors(
         "OPENAI_ADMIN_KEY": "synthetic-admin-key",
         "OPENAI_API_KEY": "synthetic-other-key",
     }
-    assert chatgpt._check_authentication("/tools/tunnel-client", "example", env) is (status == 0)
+    assert chatgpt._check_authentication(
+        "/tools/tunnel-client", "example", env, running=running
+    ) is (status == 0)
+    assert ("--health.listen-addr" in calls[0][0]) is running
+    if running:
+        assert calls[0][0][-2:] == ["--health.listen-addr", "127.0.0.1:0"]
     assert calls[1][0][-2:] == ["get", "tunnel_synthetic"]
     assert calls[1][1]["env"] == {chatgpt.KEY_ENV: "synthetic-runtime-key"}
     output = capsys.readouterr().out
@@ -366,6 +372,26 @@ def test_authenticated_check_uses_runtime_key_and_redacts_errors(
     assert "synthetic-runtime-key" not in output
     if status:
         assert str(status) in output
+
+
+def test_running_probe_does_not_ignore_other_local_configuration_failures(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[list[str]] = []
+
+    def run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        return subprocess.CompletedProcess(
+            argv,
+            2,
+            '{"checks":[{"id":"profile_load","status":"FAIL"}]}',
+            "sensitive upstream details",
+        )
+
+    monkeypatch.setattr(chatgpt.subprocess, "run", run)
+    assert not chatgpt._check_authentication("/synthetic/client", "example", {}, running=True)
+    assert len(calls) == 1 and calls[0][1] == "doctor"
+    assert "sensitive" not in str(capsys.readouterr())
 
 
 def test_local_doctor_pass_does_not_imply_valid_api_key(

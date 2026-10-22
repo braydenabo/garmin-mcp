@@ -80,6 +80,8 @@ garmin-connect-personal-mcp chatgpt-background status --check
 
 `status` reports whether the agent is installed, loaded and running. `--check` additionally makes a read-only authenticated tunnel metadata request using the saved key. Neither check proves a tool call can complete: confirm by asking ChatGPT what Garmin data is available.
 
+Use the complete command shown above: `chatgpt-background` is a subcommand of `garmin-connect-personal-mcp`, not a standalone executable. In a source checkout, prefix it with `uv run`. Checks against a running agent use a temporary health-listener port so they do not conflict with the daemon. A local configuration failure is not evidence of a rejected runtime key.
+
 Use these controls later:
 
 ```bash

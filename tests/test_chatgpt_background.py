@@ -50,7 +50,7 @@ def prepared(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FakeLaunchctl:
     monkeypatch.setattr(background, "_supported", lambda: True)
     monkeypatch.setattr(background.shutil, "which", lambda name: str(executable))
     monkeypatch.setattr(chatgpt, "_profile_exists", lambda executable, profile: True)
-    monkeypatch.setattr(chatgpt, "_check_authentication", lambda *a: True)
+    monkeypatch.setattr(chatgpt, "_check_authentication", lambda *a, **kw: True)
     monkeypatch.setattr(tunnel_credentials, "load", lambda profile: "synthetic-saved-key")
     # Use a persistent-looking path without relying on the CI host's Python location.
     monkeypatch.setattr(sys, "executable", str(tmp_path / "python env" / "python"))
@@ -119,7 +119,7 @@ def test_failed_preflight_never_installs(
         monkeypatch.setattr(background.shutil, "which", lambda name: None)
         monkeypatch.setattr(background.tunnel_install, "installed_path", lambda: Path("missing"))
     else:
-        monkeypatch.setattr(chatgpt, "_check_authentication", lambda *a: False)
+        monkeypatch.setattr(chatgpt, "_check_authentication", lambda *a, **kw: False)
     assert cli.main(["chatgpt-background", "install"]) == 1
     assert not agent().path.exists()
     assert not prepared.calls
@@ -294,3 +294,38 @@ def test_os_error_has_safe_actionable_output(
     output = capsys.readouterr()
     assert "macOS permissions" in output.err
     assert "sensitive details" not in output.err
+
+
+@pytest.mark.parametrize("state,running", [("running", True), ("waiting", False)])
+def test_live_status_checks_do_not_claim_the_daemons_health_port(
+    prepared: FakeLaunchctl, monkeypatch: pytest.MonkeyPatch, state: str, running: bool
+) -> None:
+    assert cli.main(["chatgpt-background", "install"]) == 0
+    prepared.state = state
+    check = Mock(return_value=True)
+    monkeypatch.setattr(chatgpt, "_check_authentication", check)
+    assert cli.main(["chatgpt-background", "status", "--check"]) == 0
+    assert check.call_args.kwargs == {"running": running}
+    assert not any(call[0] in ("bootout", "kickstart") for call in prepared.calls)
+
+
+def test_starting_running_agent_uses_nonconflicting_probe(
+    prepared: FakeLaunchctl, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert cli.main(["chatgpt-background", "install"]) == 0
+    check = Mock(return_value=True)
+    monkeypatch.setattr(chatgpt, "_check_authentication", check)
+    assert cli.main(["chatgpt-background", "start"]) == 0
+    assert check.call_args.kwargs == {"running": True}
+
+
+def test_failed_check_does_not_automatically_recommend_key_replacement(
+    prepared: FakeLaunchctl, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli.main(["chatgpt-background", "install"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(chatgpt, "_check_authentication", Mock(return_value=False))
+    assert cli.main(["chatgpt-background", "status", "--check"]) == 1
+    output = capsys.readouterr()
+    assert "does not mean your API key was rejected" in output.err
+    assert "--replace-key" not in output.err
