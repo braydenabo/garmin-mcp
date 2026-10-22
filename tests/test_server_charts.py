@@ -7,7 +7,7 @@ import anyio
 from mcp import Client
 
 from garmin_connect_personal_mcp import config, db
-from garmin_connect_personal_mcp.server import CHART_URI, build_server
+from garmin_connect_personal_mcp.server import CHART_HTML, CHART_URI, LEGACY_CHART_URI, build_server
 
 TODAY = date(2026, 3, 15)
 
@@ -46,8 +46,25 @@ def test_chart_tool_points_to_the_chart_view() -> None:
     tool, resources, page = with_client(go)
     assert tool.meta == {"ui": {"resourceUri": CHART_URI}}
     assert tool.annotations.read_only_hint is True
-    assert [(r.uri, r.mime_type) for r in resources] == [(CHART_URI, "text/html;profile=mcp-app")]
+    assert {(r.uri, r.mime_type) for r in resources} == {
+        (CHART_URI, "text/html;profile=mcp-app"),
+        (LEGACY_CHART_URI, "text/html;profile=mcp-app"),
+    }
     assert "ui/notifications/tool-result" in page.contents[0].text
+    assert "already displayed" in page.contents[0].meta["openai/widgetDescription"]
+
+
+def test_chart_resource_cache_key_matches_html_and_legacy_uri_still_resolves() -> None:
+    import hashlib
+
+    expected_uri = f"ui://garmin/chart-{hashlib.sha256(CHART_HTML.encode()).hexdigest()[:16]}.html"
+    assert expected_uri == CHART_URI
+
+    async def go(client: Client) -> Any:
+        return await client.read_resource(LEGACY_CHART_URI)
+
+    result = with_client(go)
+    assert result.contents[0].text == CHART_HTML
 
 
 def test_chart_returns_data_the_model_can_read() -> None:

@@ -7,6 +7,7 @@ Errors are returned as tool results that say what to do next.
 """
 
 import difflib
+import hashlib
 import sqlite3
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -18,6 +19,7 @@ from typing import Annotated, Any, Literal
 from mcp.server.apps import Apps
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.mcpserver.resources import TextResource
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
@@ -31,7 +33,11 @@ INSTRUCTIONS = (
     "archive. Call garmin_describe_data first to see which metrics exist, their units, and the "
     "dates covered. Dates are the user's local calendar dates (YYYY-MM-DD). Missing data is "
     "null, never zero: a null usually means the watch wasn't worn. This is consumer wearable "
-    "data, not a medical device; don't diagnose."
+    "data, not a medical device; don't diagnose. For chart requests, use garmin_show_chart: "
+    "it already renders the chart. Do not recreate its chart with Python or another plotting "
+    "tool. Show one chart unless the user explicitly requests multiple metrics. For a general "
+    "sleep chart use sleep_hours; use sleep_stages only when stages are requested. After the "
+    "chart, give a short text summary rather than another visualization."
 )
 
 READ_ONLY = ToolAnnotations(
@@ -50,7 +56,13 @@ TOOLSETS: dict[str, tuple[str, ...]] = {
     "sync": ("garmin_sync",),
     "charts": ("garmin_show_chart",),
 }
-CHART_URI = "ui://garmin/chart.html"
+# UI resource URIs are host cache keys. Content-address them so HTML/CSS fixes
+# become visible after the client refreshes its tool metadata.
+CHART_HTML = (
+    files("garmin_connect_personal_mcp").joinpath("ui/chart.html").read_text(encoding="utf-8")
+)
+CHART_URI = f"ui://garmin/chart-{hashlib.sha256(CHART_HTML.encode()).hexdigest()[:16]}.html"
+LEGACY_CHART_URI = "ui://garmin/chart.html"
 MAX_TOOL_SYNC_DAYS = 90
 
 NOTES = [
@@ -389,22 +401,32 @@ def show_chart(
 def _chart_apps(paths: DataPaths, today: Callable[[], date]) -> Apps:
     """garmin_show_chart, bound to the chart view that MCP Apps hosts display."""
     apps = Apps()
-    html = (
-        files("garmin_connect_personal_mcp").joinpath("ui/chart.html").read_text(encoding="utf-8")
-    )
-    apps.add_html_resource(
-        CHART_URI, html, name="Garmin chart", description="Interactive chart for garmin_show_chart"
-    )
+    for uri in (CHART_URI, LEGACY_CHART_URI):
+        apps.add_resource(
+            TextResource(
+                uri=uri,
+                name="Garmin chart" if uri == CHART_URI else "Garmin chart (legacy)",
+                description="Displays the requested Garmin metric as an interactive chart.",
+                mime_type="text/html;profile=mcp-app",
+                text=CHART_HTML,
+                meta={
+                    "openai/widgetDescription": (
+                        "The requested Garmin chart is already displayed here. Summarize it "
+                        "briefly in text; do not draw another chart or add unrequested metrics."
+                    )
+                },
+            )
+        )
 
     @apps.tool(
         resource_uri=CHART_URI,
         name="garmin_show_chart",
         title="Show a chart",
         description=(
-            "Show the user a chart of one metric over time, or of sleep stages "
-            "(metric='sleep_stages'). Use only when the user asks to see, plot, graph or "
-            "visualize data. Apps that support it display an interactive chart; the result also "
-            "has the data, so describe what it shows. Defaults to the last 30 days."
+            "Render one interactive chart when requested. For a general sleep chart use "
+            "sleep_hours; use sleep_stages when stages are requested. Do not add other metrics "
+            "unless asked. This tool displays the final chart: summarize in text without "
+            "recreating it in Python or another chart tool. Defaults to the last 30 days."
         ),
         annotations=READ_ONLY,
     )

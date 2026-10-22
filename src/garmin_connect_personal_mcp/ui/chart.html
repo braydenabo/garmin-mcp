@@ -11,48 +11,55 @@
 -->
 <style>
   :root {
-    color-scheme: light;
-    --bg: var(--color-background-primary, #ffffff);
-    --text: var(--color-text-primary, #1f2328);
-    --muted: var(--color-text-secondary, #59636e);
-    --grid: var(--color-border-tertiary, #e6e8eb);
-    --font: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
-    --primary: #0f8b8d;
-    --deep: #3b4cca;
-    --light: #7aa7ff;
-    --rem: #a35bd6;
-    --awake: #f2a541;
+    color-scheme: light dark;
+    --text: var(--color-text-primary, #1d1d1f);
+    --muted: var(--color-text-secondary, #6e6e73);
+    --grid: rgba(120, 120, 128, 0.22);
+    --font: var(--font-sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", sans-serif);
+    --deep: #5e5ce6;
+    --light: #0a84ff;
+    --rem: #5ac8fa;
+    --awake: #ff7a64;
+    --heart: #ff375f;
+    --activity: #ff9f0a;
+    --hrv: #30b0c7;
+    --energy: #34c759;
+    --stress: #ff9f0a;
+    --sleep: #5e5ce6;
+    --breath: #64d2ff;
   }
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-    --bg: var(--color-background-primary, #17191c);
-    --text: var(--color-text-primary, #e6e8eb);
-    --muted: var(--color-text-secondary, #9aa3ad);
-    --grid: var(--color-border-tertiary, #2d3136);
-    --primary: #3cc5c7;
-    --deep: #6f7cf0;
-    --light: #9cc0ff;
-    --rem: #c58cf0;
-    --awake: #f7bd66;
-  }
-  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
-  main { padding: 14px 16px 12px; }
-  h1 { font-size: 15px; font-weight: 600; margin: 0; }
-  .sub { font-size: 12px; color: var(--muted); margin: 2px 0 8px; }
+  :root[data-theme="dark"] { --text: var(--color-text-primary, #f5f5f7); --muted: var(--color-text-secondary, #98989d); }
+  html, body { margin: 0; background: transparent; color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+  main { position: relative; padding: 16px 18px 14px; max-width: 760px; }
+  .kicker { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  .big { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+  .big small { font-size: 17px; font-weight: 600; color: var(--muted); margin-left: 3px; letter-spacing: 0; }
+  .range { font-size: 13px; color: var(--muted); margin: 2px 0 14px; }
+  .chart { position: relative; touch-action: pan-y; outline: none; }
+  .chart:focus-visible { box-shadow: 0 0 0 2px var(--light); border-radius: 8px; }
   svg { display: block; width: 100%; height: auto; overflow: visible; }
-  .axis { font-size: 10px; fill: var(--muted); }
-  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
-  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
-  .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .axis { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .col { transition: opacity 120ms ease; }
+  .dimmed .col { opacity: 0.35; }
+  .dimmed .col.on { opacity: 1; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; }
+  .legend div { font-size: 12px; color: var(--muted); }
+  .legend b { display: block; font-size: 15px; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .note { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+  .sr { position: absolute; top: 0; left: 0; width: 1px; height: 1px; padding: 0; margin: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); }
+  @media (prefers-reduced-motion: no-preference) {
+    .grow { transform-box: fill-box; transform-origin: bottom; animation: grow 420ms cubic-bezier(.2,.8,.2,1) both; }
+    @keyframes grow { from { transform: scaleY(0); } }
+  }
 </style>
 </head>
 <body>
-<main id="app"><p class="sub">Loading chart…</p></main>
+<main id="app"><p class="range">Loading chart…</p></main>
 <script>
 "use strict";
 
-var W = 640, H = 260, PAD = { top: 10, right: 12, bottom: 28, left: 40 };
+var W = 640, H = 220, PAD = { top: 8, right: 36, bottom: 24, left: 4 };
 var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 var DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -62,146 +69,245 @@ function esc(text) {
   });
 }
 
+function has(v) { return v !== null && v !== undefined; }
+
 function parseDay(iso) {
   var p = iso.split("-");
   return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
 }
 
-function shortLabel(iso, count, bucket) {
+function dayName(iso) { return DAYS[parseDay(iso).getUTCDay()]; }
+
+function longDate(iso) {
   var d = parseDay(iso);
-  if (bucket === "week") return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate();
-  if (count <= 14) return DAYS[d.getUTCDay()] + " " + d.getUTCDate();
-  return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate();
+  return DAYS[d.getUTCDay()] + ", " + MONTHS[d.getUTCMonth()] + " " + d.getUTCDate();
 }
 
-function fmt(v) {
-  if (v === null || v === undefined) return "no data";
-  return Math.abs(v) >= 100 ? String(Math.round(v)) : String(Math.round(v * 10) / 10);
+function rangeText(data) {
+  var a = parseDay(data.start), b = parseDay(data.end);
+  var left = MONTHS[a.getUTCMonth()] + " " + a.getUTCDate();
+  var right = (a.getUTCMonth() === b.getUTCMonth() ? "" : MONTHS[b.getUTCMonth()] + " ") + b.getUTCDate();
+  return left + "–" + right + ", " + b.getUTCFullYear();
 }
 
-function niceMax(v) {
-  if (v <= 0) return 1;
-  var mag = Math.pow(10, Math.floor(Math.log10(v)));
+function axisLabel(iso, count, bucket) {
+  var d = parseDay(iso);
+  if (bucket === "week" || count > 14) return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate();
+  return count <= 7 ? DAYS[d.getUTCDay()] : String(d.getUTCDate());
+}
+
+// Durations read as "8h 18m"; everything else as a rounded number.
+function parts(v, unit) {
+  if (!has(v)) return { n: "—", u: "" };
+  var minutes = unit === "hours" ? v * 60 : unit === "minutes" ? v : null;
+  if (minutes !== null) {
+    var h = Math.floor(Math.round(minutes) / 60), m = Math.round(minutes) % 60;
+    return h ? { n: h + "h " + m + "m", u: "" } : { n: m + "m", u: "" };
+  }
+  var n = Math.abs(v) >= 100 ? Math.round(v).toLocaleString("en-US") : String(Math.round(v * 10) / 10);
+  var u = { bpm: "bpm", ms: "ms", km: "km", kcal: "kcal", "breaths/min": "br/min", steps: "steps", floors: "floors", points: "pts" }[unit] || "";
+  return { n: n, u: u };
+}
+
+function fmt(v, unit) { var p = parts(v, unit); return p.u ? p.n + " " + p.u : p.n; }
+
+function accent(data) {
+  var m = data.metric;
+  if (/hrv/.test(m)) return "hrv";
+  if (/_bpm$/.test(m)) return "heart";
+  if (/body_battery/.test(m)) return "energy";
+  if (/stress/.test(m)) return "stress";
+  if (/sleep|awake/.test(m)) return "sleep";
+  if (/respiration/.test(m)) return "breath";
+  return "activity";
+}
+
+// A round gridline step giving about three lines across `range` (hours step in whole hours).
+function niceStep(range, unit) {
+  if (unit === "hours") return range <= 6 ? 2 : range <= 9 ? 3 : 4;
+  var raw = Math.max(range, 1e-9) / 3, mag = Math.pow(10, Math.floor(Math.log10(raw)));
   var steps = [1, 2, 2.5, 5, 10];
-  for (var i = 0; i < steps.length; i++) if (steps[i] * mag >= v) return steps[i] * mag;
+  for (var i = 0; i < steps.length; i++) if (steps[i] * mag >= raw) return steps[i] * mag;
   return 10 * mag;
 }
 
 function totals(data) {
   return data.labels.map(function (_, i) {
     var sum = null;
-    data.series.forEach(function (s) {
-      var v = s.values[i];
-      if (v !== null && v !== undefined) sum = (sum || 0) + v;
-    });
+    data.series.forEach(function (s) { if (has(s.values[i])) sum = (sum || 0) + s.values[i]; });
     return sum;
   });
 }
 
+function scale(data) {
+  var peaks = data.kind === "stacked" ? totals(data) : data.series[0].values;
+  var present = peaks.filter(has);
+  var max = present.length ? Math.max.apply(null, present) : 1, min = present.length ? Math.min.apply(null, present) : 0;
+  var lo = 0, step = niceStep(max, data.unit);
+  if (data.kind === "line" && present.length) {
+    var pad = Math.max((max - min) * 0.25, 1);
+    step = niceStep(max - min + 2 * pad, data.unit);
+    lo = Math.max(0, Math.floor((min - pad) / step) * step);
+  }
+  var hi = Math.max(lo + step, Math.ceil((max + (data.kind === "line" ? step * 0.25 : 0)) / step) * step);
+  return { lo: lo, hi: hi, step: step, present: present.length };
+}
+
+function linePath(pts) {
+  return pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
+}
+
 // Pure: chart data in, SVG markup out. Tested with Node.
 function renderChart(data) {
-  var n = data.labels.length;
-  var plotW = W - PAD.left - PAD.right, plotH = H - PAD.top - PAD.bottom;
-  var stacked = data.kind === "stacked";
-  var peaks = stacked ? totals(data) : data.series[0].values;
-  var present = peaks.filter(function (v) { return v !== null && v !== undefined; });
-  var lo = 0, hi = niceMax(present.length ? Math.max.apply(null, present) : 1);
-  if (data.kind === "line" && present.length) {
-    var min = Math.min.apply(null, present), span = Math.max.apply(null, present) - min;
-    lo = Math.max(0, Math.floor((min - span * 0.25 - 1) / 5) * 5);
-    hi = lo + niceMax(Math.max.apply(null, present) - lo + span * 0.1 + 1);
-  }
-  function y(v) { return PAD.top + plotH - ((v - lo) / (hi - lo)) * plotH; }
-  var slot = plotW / Math.max(n, 1);
+  var n = data.labels.length, s = scale(data), stacked = data.kind === "stacked";
+  var plotW = W - PAD.left - PAD.right, plotH = H - PAD.top - PAD.bottom, slot = plotW / Math.max(n, 1);
+  function y(v) { return PAD.top + plotH - ((v - s.lo) / (s.hi - s.lo)) * plotH; }
   function x(i) { return PAD.left + slot * (i + 0.5); }
-  var out = [];
-  out.push('<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' +
-    esc(data.title + ", " + data.start + " to " + data.end) + '">');
-  for (var t = 0; t <= 4; t++) {
-    var tv = lo + ((hi - lo) * t) / 4, ty = y(tv).toFixed(1);
-    out.push('<line x1="' + PAD.left + '" x2="' + (W - PAD.right) + '" y1="' + ty + '" y2="' + ty +
-      '" stroke="var(--grid)" stroke-width="1"/>');
-    out.push('<text class="axis" x="' + (PAD.left - 6) + '" y="' + ty + '" dy="3" text-anchor="end">' +
-      esc(fmt(tv)) + "</text>");
+  var tone = accent(data), out = [];
+  out.push('<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(data.title + ", " + rangeText(data)) + '">');
+  out.push('<defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--' + tone +
+    ')" stop-opacity="0.28"/><stop offset="1" stop-color="var(--' + tone + ')" stop-opacity="0"/></linearGradient></defs>');
+  for (var tv = s.lo; tv <= s.hi + 1e-9; tv += s.step) {
+    var ty = y(tv).toFixed(1), label = data.unit === "hours" ? Math.round(tv) + "h" : tv >= 1000 ? Math.round(tv / 100) / 10 + "k" : String(Math.round(tv * 10) / 10);
+    out.push('<line x1="' + PAD.left + '" x2="' + (W - PAD.right) + '" y1="' + ty + '" y2="' + ty + '" stroke="var(--grid)" stroke-dasharray="' + (tv > s.lo ? "2 4" : "0") + '"/>');
+    out.push('<text class="axis" x="' + (W - PAD.right + 6) + '" y="' + ty + '" dy="4">' + esc(label) + "</text>");
   }
-  var every = Math.ceil(n / 10);
+  var every = Math.ceil(n / 8), lastLabelRight = -Infinity;
   data.labels.forEach(function (label, i) {
-    // Every nth label, plus the last one when it isn't crowded by the one before it.
-    var lastFits = i === n - 1 && (n - 1) % every >= Math.ceil(every / 2);
-    if (i % every !== 0 && !lastFits) return;
-    out.push('<text class="axis" x="' + x(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' +
-      esc(shortLabel(label, n, data.bucket)) + "</text>");
+    if (i % every !== 0 && i !== n - 1) return;
+    var text = axisLabel(label, n, data.bucket), halfWidth = text.length * 3.5;
+    // Reserve text width plus a gap; forcing the last tick can overlap the prior date.
+    if (x(i) - halfWidth < lastLabelRight + 8) return;
+    lastLabelRight = x(i) + halfWidth;
+    out.push('<text class="axis" x="' + x(i).toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle">' + esc(text) + "</text>");
   });
-  var barW = Math.max(2, Math.min(36, slot * 0.62));
   if (data.kind === "line") {
-    var vals = data.series[0].values, path = "", open = false;
+    var vals = data.series[0].values, runs = [], run = [];
     vals.forEach(function (v, i) {
-      if (v === null || v === undefined) { open = false; return; }
-      path += (open ? " L" : " M") + x(i).toFixed(1) + " " + y(v).toFixed(1);
-      open = true;
+      if (has(v)) run.push([x(i), y(v), i]); else if (run.length) { runs.push(run); run = []; }
     });
-    if (path) out.push('<path d="' + path.trim() + '" fill="none" stroke="var(--primary)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>');
+    if (run.length) runs.push(run);
+    runs.forEach(function (r) {
+      if (r.length > 1) {
+        out.push('<path d="' + linePath(r) + " L" + r[r.length - 1][0].toFixed(1) + " " + y(s.lo).toFixed(1) + " L" + r[0][0].toFixed(1) + " " + y(s.lo).toFixed(1) + ' Z" fill="url(#fade)"/>');
+        out.push('<path d="' + linePath(r) + '" fill="none" stroke="var(--' + tone + ')" stroke-width="2.5" stroke-linecap="round"/>');
+      }
+    });
     vals.forEach(function (v, i) {
-      if (v === null || v === undefined) return;
-      out.push('<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="3.5" fill="var(--primary)">' +
-        "<title>" + esc(data.labels[i] + ": " + fmt(v) + " " + data.unit) + "</title></circle>");
+      if (!has(v)) return;
+      out.push('<g class="col" data-i="' + i + '"><circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="' + (n > 40 ? 2 : 3.5) +
+        '" fill="var(--' + tone + ')"/><title>' + esc(longDate(data.labels[i]) + ": " + fmt(v, data.unit)) + "</title></g>");
     });
   } else {
+    var barW = Math.max(3, Math.min(30, slot * 0.56)), gap = stacked ? 1.5 : 0;
     data.labels.forEach(function (label, i) {
-      var base = lo, tips = [];
-      data.series.forEach(function (s) {
-        var v = s.values[i];
-        if (v !== null && v !== undefined) tips.push(s.name + " " + fmt(v));
+      var segs = data.series.map(function (sr) { return { v: sr.values[i], role: stacked ? sr.role : tone }; })
+        .filter(function (g) { return has(g.v) && g.v > 0; });
+      if (!segs.length) return;
+      var base = s.lo, tips = [], cells = [], left = (x(i) - barW / 2).toFixed(1);
+      var colTop = y(base + segs.reduce(function (a, g) { return a + g.v; }, 0)), r = Math.min(6, barW / 2);
+      cells.push('<clipPath id="c' + i + '"><rect x="' + left + '" y="' + colTop.toFixed(1) + '" width="' + barW.toFixed(1) +
+        '" height="' + (y(s.lo) - colTop + r).toFixed(1) + '" rx="' + r.toFixed(1) + '"/></clipPath><g clip-path="url(#c' + i + ')" class="grow">');
+      segs.forEach(function (g, k) {
+        var top = y(base + g.v), bottom = y(base) - (k ? gap : 0);
+        cells.push('<rect x="' + left + '" y="' + top.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + Math.max(1, bottom - top).toFixed(1) + '" fill="var(--' + esc(g.role) + ')"/>');
+        base += g.v;
       });
-      data.series.forEach(function (s) {
-        var v = s.values[i];
-        if (v === null || v === undefined || v <= 0) return;
-        var top = y(base + v), bottom = y(base);
-        out.push('<rect x="' + (x(i) - barW / 2).toFixed(1) + '" y="' + top.toFixed(1) + '" width="' +
-          barW.toFixed(1) + '" height="' + Math.max(0.5, bottom - top).toFixed(1) + '" rx="2" fill="var(--' +
-          esc(stacked ? s.role : "primary") + ')"><title>' +
-          esc(label + ": " + (stacked ? tips.join(", ") + " (" + data.unit + ")" : fmt(v) + " " + data.unit)) +
-          "</title></rect>");
-        base += v;
-      });
+      cells.push("</g>");
+      data.series.forEach(function (sr) { if (has(sr.values[i])) tips.push(sr.name + " " + fmt(sr.values[i], data.unit)); });
+      out.push('<g class="col" data-i="' + i + '">' + cells.join("") + "<title>" +
+        esc(longDate(label) + ": " + (stacked ? tips.join(", ") : fmt(segs[0].v, data.unit))) + "</title></g>");
     });
   }
-  if (data.average !== null && data.average !== undefined && present.length > 1) {
+  if (has(data.average) && s.present > 1) {
     var ay = y(data.average).toFixed(1);
-    out.push('<line x1="' + PAD.left + '" x2="' + (W - PAD.right) + '" y1="' + ay + '" y2="' + ay +
-      '" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 4"><title>Average ' +
-      esc(fmt(data.average) + " " + data.unit) + "</title></line>");
+    out.push('<line x1="' + PAD.left + '" x2="' + (W - PAD.right) + '" y1="' + ay + '" y2="' + ay + '" stroke="var(--' + tone + ')" stroke-opacity="0.55" stroke-dasharray="4 4"/>');
   }
   out.push("</svg>");
   return out.join("");
 }
 
-function renderView(data) {
-  var parts = [];
-  parts.push("<h1>" + esc(data.title) + "</h1>");
-  var sub = data.start + " to " + data.end + " · " + data.unit;
-  if (data.average !== null && data.average !== undefined) sub += " · average " + fmt(data.average);
-  parts.push('<p class="sub">' + esc(sub) + "</p>");
-  parts.push(renderChart(data));
-  if (data.kind === "stacked") {
-    parts.push('<div class="legend">' + data.series.map(function (s) {
-      return '<span><i style="background:var(--' + esc(s.role) + ')"></i>' + esc(s.name) + "</span>";
-    }).join("") + "</div>");
+// The headline: the average, or the selected day when the user points at one.
+function renderHeader(data, sel) {
+  var picked = has(sel) && sel >= 0 && sel < data.labels.length;
+  var value = picked ? (data.kind === "stacked" ? totals(data)[sel] : data.series[0].values[sel]) : data.average;
+  var p = parts(value, data.unit);
+  var kicker = picked ? longDate(data.labels[sel]) : (data.bucket === "week" ? "Weekly average" : "Average") + " · " + data.title;
+  return '<p class="kicker">' + esc(kicker) + '</p><p class="big">' + esc(p.n) + (p.u ? "<small>" + esc(p.u) + "</small>" : "") +
+    '</p><p class="range">' + esc(picked && !has(value) ? "No data this day" : rangeText(data)) + "</p>";
+}
+
+function renderLegend(data, sel) {
+  if (data.kind !== "stacked") return "";
+  var picked = has(sel) && sel >= 0;
+  return '<div class="legend">' + data.series.map(function (s) {
+    var vals = s.values.filter(has);
+    var v = picked ? s.values[sel] : vals.length ? vals.reduce(function (a, b) { return a + b; }, 0) / vals.length : null;
+    return '<div><i style="background:var(--' + esc(s.role) + ')"></i>' + esc(s.name) + "<b>" + esc(fmt(v, data.unit)) + "</b></div>";
+  }).join("") + "</div>";
+}
+
+function renderView(data, sel) {
+  var out = ['<div id="head">' + renderHeader(data, sel) + "</div>"];
+  out.push('<div class="chart" tabindex="0" aria-label="' + esc(data.title + " chart. Use arrow keys to step through days.") + '">' + renderChart(data) + "</div>");
+  out.push('<div id="legend">' + renderLegend(data, sel) + "</div>");
+  data.notes.forEach(function (note) { out.push('<p class="note">' + esc(note) + "</p>"); });
+  // A table's minimum row height can defeat height:1px. Clip a wrapper instead,
+  // anchored at the app's top so hidden rows never extend the scrollable page.
+  out.push('<div class="sr"><table><tr><th>Date</th>' + data.series.map(function (s) { return "<th>" + esc(s.name) + "</th>"; }).join("") + "</tr>" +
+    data.labels.map(function (label, i) {
+      return "<tr><td>" + esc(label) + "</td>" + data.series.map(function (s) { return "<td>" + esc(fmt(s.values[i], data.unit)) + "</td>"; }).join("") + "</tr>";
+    }).join("") + "</table></div>");
+  return out.join("");
+}
+
+// --- interaction: point at (or arrow to) a day to see its numbers, like Apple Health ---
+
+var current = null, selected = null;
+
+function select(i) {
+  if (!current || i === selected) return;
+  selected = i;
+  document.getElementById("head").innerHTML = renderHeader(current, i);
+  document.getElementById("legend").innerHTML = renderLegend(current, i);
+  var chart = document.querySelector(".chart");
+  chart.classList.toggle("dimmed", has(i));
+  Array.prototype.forEach.call(chart.querySelectorAll(".col"), function (g) {
+    g.classList.toggle("on", has(i) && +g.getAttribute("data-i") === i);
+  });
+}
+
+function bind() {
+  var chart = document.querySelector(".chart");
+  function at(event) {
+    var box = chart.querySelector("svg").getBoundingClientRect();
+    var px = ((event.clientX - box.left) / box.width) * W - PAD.left;
+    var i = Math.floor(px / ((W - PAD.left - PAD.right) / current.labels.length));
+    return Math.max(0, Math.min(current.labels.length - 1, i));
   }
-  data.notes.forEach(function (note) { parts.push('<p class="note">' + esc(note) + "</p>"); });
-  parts.push('<table class="sr"><tr><th>Date</th>' + data.series.map(function (s) {
-    return "<th>" + esc(s.name) + "</th>";
-  }).join("") + "</tr>" + data.labels.map(function (label, i) {
-    return "<tr><td>" + esc(label) + "</td>" + data.series.map(function (s) {
-      return "<td>" + esc(fmt(s.values[i])) + "</td>";
-    }).join("") + "</tr>";
-  }).join("") + "</table>");
-  return parts.join("");
+  chart.addEventListener("pointermove", function (e) { select(at(e)); });
+  chart.addEventListener("pointerdown", function (e) { select(at(e)); });
+  chart.addEventListener("pointerleave", function () { select(null); });
+  chart.addEventListener("keydown", function (e) {
+    var last = current.labels.length - 1;
+    if (e.key === "ArrowLeft") select(has(selected) ? Math.max(0, selected - 1) : last);
+    else if (e.key === "ArrowRight") select(has(selected) ? Math.min(last, selected + 1) : 0);
+    else if (e.key === "Escape") select(null);
+    else return;
+    e.preventDefault();
+  });
+}
+
+function show(data) {
+  current = data; selected = null;
+  document.getElementById("app").innerHTML = renderView(data, null);
+  bind();
+  reportSize();
 }
 
 // --- MCP Apps protocol (host <-> view over postMessage) ---
 
-var nextId = 1, pending = {}, lastData = null;
+var nextId = 1, pending = {}, lastHeight = 0, lastIntrinsicHeight = 0, hostReady = false;
 
 function send(message) { window.parent.postMessage(message, "*"); }
 
@@ -217,25 +323,28 @@ function applyContext(ctx) {
   if (!ctx) return;
   if (ctx.theme) document.documentElement.setAttribute("data-theme", ctx.theme);
   var vars = ctx.styles && ctx.styles.variables;
-  if (vars) Object.keys(vars).forEach(function (k) {
-    if (vars[k]) document.documentElement.style.setProperty(k, vars[k]);
-  });
+  if (vars) Object.keys(vars).forEach(function (k) { if (vars[k]) document.documentElement.style.setProperty(k, vars[k]); });
 }
 
-function show(data) {
-  lastData = data;
-  document.getElementById("app").innerHTML = renderView(data);
-}
-
-function reportSize() {
-  var el = document.documentElement;
-  notify("ui/notifications/size-changed", { width: el.scrollWidth, height: el.scrollHeight });
+// Report the content's height, not the frame's, so the host can shrink the frame to fit.
+function reportSize(force) {
+  if (!hostReady) return;
+  var app = document.getElementById("app"), height = Math.ceil(app.getBoundingClientRect().height);
+  if (height && (force === true || height !== lastHeight)) {
+    lastHeight = height;
+    notify("ui/notifications/size-changed", { width: Math.ceil(app.getBoundingClientRect().width), height: height });
+  }
+  // Feature-detect the ChatGPT bridge; deduplicate independently so echoed host
+  // updates cannot create a resize loop. Other hosts retain the standard path.
+  if (height && height !== lastIntrinsicHeight && window.openai &&
+      typeof window.openai.notifyIntrinsicHeight === "function") {
+    lastIntrinsicHeight = height;
+    try { window.openai.notifyIntrinsicHeight(height); } catch (_) { /* standard bridge remains active */ }
+  }
 }
 
 function start() {
-  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-    document.documentElement.setAttribute("data-theme", "dark");
-  }
+  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.setAttribute("data-theme", "dark");
   window.addEventListener("message", function (event) {
     if (event.source !== window.parent) return;
     var msg = event.data || {};
@@ -247,27 +356,35 @@ function start() {
     if (msg.method === "ui/notifications/tool-result") {
       var data = msg.params && msg.params.structuredContent;
       if (data && data.labels) show(data);
-      else document.getElementById("app").innerHTML = '<p class="sub">No chart data in this result.</p>';
+      else {
+        document.getElementById("app").innerHTML = '<p class="range">No chart data in this result.</p>';
+        reportSize();
+      }
     } else if (msg.method === "ui/notifications/host-context-changed") {
       applyContext(msg.params);
-      if (lastData) show(lastData);
+      reportSize(true);
     }
   });
-  if (window.ResizeObserver) new ResizeObserver(reportSize).observe(document.documentElement);
+  if (window.ResizeObserver) new ResizeObserver(function () { reportSize(); }).observe(document.getElementById("app"));
+  window.addEventListener("openai:set_globals", function () { reportSize(); });
+  window.addEventListener("resize", function () { reportSize(); });
+  function initialized() {
+    notify("ui/notifications/initialized");
+    hostReady = true;
+    reportSize(true);
+  }
   request("ui/initialize", {
-    appInfo: { name: "garmin-chart", version: "1" },
+    appInfo: { name: "garmin-chart", version: "2" },
     appCapabilities: {},
     protocolVersion: "2026-01-26",
   }).then(function (result) {
     applyContext(result && result.hostContext);
-    notify("ui/notifications/initialized");
-  }, function () {
-    notify("ui/notifications/initialized");
-  });
+    initialized();
+  }, initialized);
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { renderChart: renderChart, renderView: renderView, niceMax: niceMax, shortLabel: shortLabel };
+  module.exports = { renderChart: renderChart, renderView: renderView, renderHeader: renderHeader, parts: parts, niceStep: niceStep };
 } else {
   start();
 }

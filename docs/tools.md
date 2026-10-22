@@ -61,7 +61,7 @@ Workouts newest first, with headline stats (duration, distance, pace or speed, h
 
 ## `garmin_show_chart`
 
-Show the user a chart of one metric over time, or of sleep stages (metric='sleep_stages'). Use only when the user asks to see, plot, graph or visualize data. Apps that support it display an interactive chart; the result also has the data, so describe what it shows. Defaults to the last 30 days.
+Render one interactive chart when requested. For a general sleep chart use sleep_hours; use sleep_stages when stages are requested. Do not add other metrics unless asked. This tool displays the final chart: summarize in text without recreating it in Python or another chart tool. Defaults to the last 30 days.
 
 *read-only, local only, shows an interactive chart in apps that support MCP Apps*
 
