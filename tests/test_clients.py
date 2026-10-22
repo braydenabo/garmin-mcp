@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from garmin_connect_personal_mcp import clients
+from garmin_connect_personal_mcp import cli, clients, config
 
 ENTRY = clients.Entry("/opt/py/bin/python", ["-m", "garmin_connect_personal_mcp", "serve"])
 
@@ -205,3 +205,52 @@ def test_get_client() -> None:
     }
     with pytest.raises(clients.ClientError, match="Choose from"):
         clients.get_client("chatgpt")
+
+
+# --- CLI
+
+
+def test_cli_lists_clients(capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["install-client"]) == 0
+    out = capsys.readouterr().out
+    assert all(key in out for key in clients.CLIENTS)
+    assert "ChatGPT" in out
+
+
+def test_cli_preview_changes_nothing(
+    isolated_home: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli.main(["install-client", "cursor"]) == 0
+    captured = capsys.readouterr()
+    assert '"mcpServers"' in captured.out and "--write" in captured.out
+    assert "no API key saved" in captured.err
+    assert not (isolated_home / ".cursor").exists()
+
+
+def test_cli_write(isolated_home: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    config.save_api_key("fake-key-123456")
+    assert cli.main(["install-client", "gemini", "--write"]) == 0
+    captured = capsys.readouterr()
+    assert "Added the 'garmin' server" in captured.out and captured.err == ""
+    saved = json.loads((isolated_home / ".gemini" / "settings.json").read_text())
+    assert saved["mcpServers"]["garmin"]["command"] == sys.executable
+    assert "fake-key-123456" not in json.dumps(saved)
+
+
+def test_cli_write_error(capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["install-client", "vscode", "--write"]) == 1
+    assert "MCP: Open User Configuration" in capsys.readouterr().err
+
+
+def test_cli_warns_about_uvx_cache(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.sys, "executable", "/Users/x/.cache/uv/archive-v0/abc/bin/python")
+    assert cli.main(["install-client", "cursor"]) == 0
+    assert "uv tool install" in capsys.readouterr().err
+
+
+def test_cli_rejects_unknown_client(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        cli.main(["install-client", "chatgpt"])
+    assert "invalid choice" in capsys.readouterr().err

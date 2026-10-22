@@ -7,7 +7,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from garmin_connect_personal_mcp import __version__, config, db, doctor, schedule
+from garmin_connect_personal_mcp import __version__, clients, config, db, doctor, schedule
 from garmin_connect_personal_mcp.garmin_client import GarminApi, GarminError
 from garmin_connect_personal_mcp.progress import ProgressDisplay
 from garmin_connect_personal_mcp.sync import DAILY_DATASETS, SyncAlreadyRunning, run_sync
@@ -81,6 +81,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     check.add_argument("--offline", action="store_true", help="skip the request to Garmin")
     check.add_argument("--json", action="store_true", help="print the report as JSON")
+
+    install_client = commands.add_parser(
+        "install-client",
+        help="add this server to an MCP client (Claude, Cursor, VS Code, Gemini, Codex)",
+        description=(
+            "Show, or with --write apply, the configuration that adds this server to an MCP "
+            "client. Without a client name, lists the supported clients."
+        ),
+    )
+    install_client.add_argument(
+        "client",
+        nargs="?",
+        choices=list(clients.CLIENTS),
+        metavar="CLIENT",
+        help="client to set up",
+    )
+    install_client.add_argument(
+        "--write",
+        action="store_true",
+        help="apply the change (JSON configs are backed up first); without it, only show it",
+    )
 
     serve = commands.add_parser(
         "serve",
@@ -276,6 +297,45 @@ def _can_print(text: str) -> bool:
     return True
 
 
+def cmd_install_client(args: argparse.Namespace) -> int:
+    if args.client is None:
+        print("Supported clients:")
+        for key, cls in clients.CLIENTS.items():
+            print(f"  {key:<15} {cls.title}")
+        print(f"\nPreview: {PROG} install-client <client>")
+        print(f"Apply:   {PROG} install-client <client> --write")
+        print("ChatGPT needs the remote (HTTP) server, which isn't available yet.")
+        return 0
+    client = clients.get_client(args.client)
+    entry = clients.server_entry()
+    if _temporary_python():
+        print(
+            "Warning: this is running from uvx's temporary cache, which can be cleared at any "
+            "time and would break the client's configuration. For a lasting install run: "
+            f"uv tool install garmin-connect-personal-mcp, then {PROG} install-client "
+            f"{args.client}",
+            file=sys.stderr,
+        )
+    if not (config.api_key_file().exists() or config.api_key_from_env()):
+        print(
+            f"Note: no API key saved yet. The server will start, but it has no data until you "
+            f"run `{PROG} init` and `{PROG} sync`.",
+            file=sys.stderr,
+        )
+    if not args.write:
+        print(f"{client.title}:\n")
+        print(client.preview(entry))
+        print(f"To apply this automatically: {PROG} install-client {args.client} --write")
+        return 0
+    try:
+        result = client.write(entry)
+    except clients.ClientError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    print(result.message)
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     # Imported here so the rest of the CLI starts fast and doesn't need the MCP SDK loaded.
     from garmin_connect_personal_mcp import autosync
@@ -307,5 +367,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_doctor(args)
     if args.command == "serve":
         return cmd_serve(args)
+    if args.command == "install-client":
+        return cmd_install_client(args)
     parser.print_help()
     return 0
