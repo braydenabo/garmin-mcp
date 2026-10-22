@@ -14,6 +14,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- Optional macOS `chatgpt-background install | start | stop | status | uninstall` controls run the tunnel at login with launchd restart throttling. They require a saved native-keychain key, keep credentials out of service files and logs, preserve the configured archive location, and leave the key/profile/archive intact on uninstall. `status --check` checks authenticated metadata access without claiming end-to-end ChatGPT connectivity.
 - Charts now show metric-specific colors, rounded bars, duration formatting, average/selected-day headings, keyboard selection and a sleep-stage legend.
 - `setup-chatgpt`: guided local Secure MCP Tunnel setup, with prerequisite checks, native tunnel profile creation/reuse, hidden runtime-key input, connectivity checks and foreground startup. New profiles expose read-only tools.
 - ChatGPT setup automatically reuses existing tunnel profiles and can remember a validated runtime key in the native OS keychain with consent. The same setup command restarts the tunnel without repeated account prompts. `--no-keychain` bypasses credential storage; `--forget-key` removes a saved key without deleting the profile or archive.

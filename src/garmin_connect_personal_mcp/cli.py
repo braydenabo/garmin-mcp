@@ -116,6 +116,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="prompt for a key, bypassing environment and keychain",
     )
 
+    background = commands.add_parser(
+        "chatgpt-background",
+        help="manage optional macOS tunnel startup at login",
+        description="Opt-in startup using your saved OS-keychain key, never a service-file key.",
+    )
+    background_actions = background.add_subparsers(dest="action", required=True)
+    background_help = {
+        "install": "enable startup at login and start now",
+        "start": "start an installed agent",
+        "stop": "stop until started again or next login",
+        "status": "show local agent state; optionally check authentication",
+        "uninstall": "stop and disable startup; keep profile, key and archive",
+        "run": "internal runner",
+    }
+    for name, help_text in background_help.items():
+        action = background_actions.add_parser(name, help=help_text)
+        action.add_argument("--profile", default="garmin-local")
+        if name == "status":
+            action.add_argument(
+                "--check", action="store_true", help="also check saved credentials with OpenAI"
+            )
+        if name == "run":
+            action.add_argument("--client", required=True, help=argparse.SUPPRESS)
+
     install_client = commands.add_parser(
         "install-client",
         help="add this server to an MCP client (Claude, Cursor, VS Code, Gemini, Codex)",
@@ -437,6 +461,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             no_keychain=args.no_keychain,
             forget_key=args.forget_key,
             replace_key=args.replace_key,
+        )
+    if args.command == "chatgpt-background":
+        from garmin_connect_personal_mcp import chatgpt_background
+
+        return chatgpt_background.manage(
+            args.action,
+            profile=args.profile,
+            check=getattr(args, "check", False),
+            client=getattr(args, "client", None),
         )
     if args.command == "serve":
         return cmd_serve(args)

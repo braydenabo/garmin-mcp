@@ -31,7 +31,7 @@ To start again, including after an interrupted setup that already created a prof
 garmin-connect-personal-mcp setup-chatgpt
 ```
 
-On a restart, the guide skips the account setup pages and starts the existing tunnel after checking connectivity. You still need to start it after closing the process or restarting your computer; it is a foreground process, not an automatically installed background service.
+On a restart, the guide skips the account setup pages and starts the existing tunnel after checking connectivity. This command runs in the foreground. On macOS you can opt into background startup below; nothing is enabled automatically.
 
 Other options: `--tunnel-id <id>` skips the tunnel ID prompt; `--profile <name>` chooses a different profile; `--no-start` configures and checks without starting the tunnel; `--no-browser` prints links without opening tabs; `--no-keychain` bypasses saved credentials and disables saving. `--reuse-profile` remains available to explicitly reuse an existing profile. Reused profiles retain their existing server command and settings. If you use `GARMIN_MCP_DATA_DIR`, keep that environment setting when restarting.
 
@@ -58,6 +58,43 @@ The wizard's local `doctor` check verifies configuration. It separately performs
 If automatic installation fails, the wizard explains the error and opens the official download page as a fallback. On machines without a browser, it prints the exact link instead. Browser login and account/workspace permissions remain user steps.
 
 Account and workspace permissions still need to be set in your browser. A successful local check does not confirm ChatGPT support: select the Garmin plugin and make the tool call below to verify the connection.
+
+## Optional background startup (macOS)
+
+Once the connection works in ChatGPT, you can keep the tunnel running without an open terminal. This is a per-user macOS LaunchAgent, not a cloud deployment. It starts when you log in, and launchd restarts exited processes with a 60-second launch throttle. The tunnel client handles temporary connection failures while it remains running. Your computer must still be awake, online and logged in for ChatGPT to reach it.
+
+First stop any foreground tunnel with Ctrl-C. If you have not saved the runtime key yet, run the command below and accept saving it in your OS keychain:
+
+```bash
+garmin-connect-personal-mcp setup-chatgpt --no-start
+```
+
+Then explicitly enable startup:
+
+```bash
+garmin-connect-personal-mcp chatgpt-background install
+garmin-connect-personal-mcp chatgpt-background status --check
+```
+
+`install` validates the existing profile and saved key before writing a service file or enabling the agent. It never creates a tunnel, prompts for a key, or saves an environment key. macOS may ask you to allow Python access to the saved key. If the keychain is locked or access is refused, unlock/authorize it and retry. No API key is written into the LaunchAgent or passed on the command line. Raw client output is discarded rather than recorded in background logs; `status --check` provides sanitized profile/key/network diagnostics.
+
+`status` reports whether the agent is installed, loaded and running. `--check` additionally makes a read-only authenticated tunnel metadata request using the saved key. Neither check proves a tool call can complete: confirm by asking ChatGPT what Garmin data is available.
+
+Use these controls later:
+
+```bash
+garmin-connect-personal-mcp chatgpt-background stop
+garmin-connect-personal-mcp chatgpt-background start
+garmin-connect-personal-mcp chatgpt-background uninstall
+```
+
+`stop` unloads the agent until you start it again or log in next time. `uninstall` also removes this profile's LaunchAgent, disabling future login startup; it keeps your keychain entry, tunnel profile and Garmin archive. Add `--profile <name>` after any action to manage another profile. Duplicate foreground/background runs for the same profile and archive are refused.
+
+The agent pins the Python installation, tunnel-client executable and archive directory used at installation time. Keep that installation in place. If you move/reinstall Python or change the archive location, uninstall and install the agent again. Do not use a temporary `uvx` environment. In a source checkout, prefix commands with `uv run`; the agent uses that checkout's persistent `.venv`, not `uv` at login.
+
+For a rejected or expired key, stop the agent, run `setup-chatgpt --replace-key --no-start` and save the replacement, then start the agent again. Background mode deliberately ignores shell API keys and uses only the saved keychain entry. Reused native tunnel profiles keep their existing command/settings; new guided profiles are read-only.
+
+Background startup currently supports **macOS only**. Linux and Windows users can continue using the foreground `setup-chatgpt` command.
 
 ## Manual setup
 

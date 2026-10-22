@@ -56,6 +56,8 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and a Gar
 
    It checks prerequisites and configures a private Secure MCP Tunnel. OpenAI account/workspace setup is required; see [the ChatGPT guide](docs/clients/chatgpt.md).
 
+   On macOS, optional [background startup](docs/clients/chatgpt.md#optional-background-startup-macos) keeps the tunnel running without an open terminal. Nothing is enabled automatically.
+
 6. **Ask:** *"How did I sleep last night?"*
 
 ## What you can ask
