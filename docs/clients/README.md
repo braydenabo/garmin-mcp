@@ -8,7 +8,7 @@
 | VS Code | `garmin-connect-personal-mcp install-client vscode` (paste the snippet) | [vscode.md](vscode.md) |
 | Gemini CLI | `garmin-connect-personal-mcp install-client gemini --write` | [gemini-cli.md](gemini-cli.md) |
 | Codex CLI | `garmin-connect-personal-mcp install-client codex --write` | [codex.md](codex.md) |
-| ChatGPT | Not yet: it only connects to remote (HTTPS) servers, which are planned. | |
+| ChatGPT | `garmin-connect-personal-mcp setup-chatgpt` (private Secure MCP Tunnel) | [chatgpt.md](chatgpt.md) |
 
 Without `--write`, `install-client` only shows what it would change. With it, JSON configs are backed up before editing and only the `garmin` entry is touched.
 

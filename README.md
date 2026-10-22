@@ -10,7 +10,7 @@ It syncs Garmin's official [Personal API](https://developer.garmin.com/gc-develo
 
 ## Status
 
-**Alpha.** Syncing, the local archive and the MCP server work and are tested on macOS, Linux and Windows. The package isn't on PyPI yet, so install it from GitHub (below). ChatGPT support needs the remote server, which is planned.
+**Alpha.** Syncing, the local archive and the stdio MCP server work and are tested on macOS, Linux and Windows. ChatGPT can connect through OpenAI Secure MCP Tunnel; see [the ChatGPT guide](docs/clients/chatgpt.md). An optional Streamable HTTP mode is also available for self-hosted deployments.
 
 ## Quickstart
 
@@ -47,6 +47,14 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and a Gar
    ```
 
    Other clients: `claude-code`, `cursor`, `vscode`, `gemini`, `codex`. See [docs/clients](docs/clients/README.md) for each one.
+
+   For ChatGPT, run the guided setup:
+
+   ```bash
+   garmin-connect-personal-mcp setup-chatgpt
+   ```
+
+   It checks prerequisites and configures a private Secure MCP Tunnel. OpenAI account/workspace setup is required; see [the ChatGPT guide](docs/clients/chatgpt.md).
 
 6. **Ask:** *"How did I sleep last night?"*
 

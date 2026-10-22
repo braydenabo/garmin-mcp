@@ -83,6 +83,39 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--offline", action="store_true", help="skip the request to Garmin")
     check.add_argument("--json", action="store_true", help="print the report as JSON")
 
+    chatgpt = commands.add_parser(
+        "setup-chatgpt",
+        help="guided setup for a private ChatGPT Secure MCP Tunnel",
+        description=(
+            "Check prerequisites, create a local tunnel-client profile and start the tunnel. "
+            "OpenAI account/workspace steps are completed in your browser. "
+            "Existing profiles are reused automatically. Runtime keys can be saved "
+            "in your OS keychain with your permission."
+        ),
+    )
+    chatgpt.add_argument("--tunnel-id", help="tunnel ID from OpenAI Platform; prompted if omitted")
+    chatgpt.add_argument("--profile", default="garmin-local", help="tunnel-client profile name")
+    chatgpt.add_argument(
+        "--reuse-profile", action="store_true", help="use an existing profile without rewriting it"
+    )
+    chatgpt.add_argument(
+        "--no-start", action="store_true", help="configure and check the tunnel without starting it"
+    )
+    chatgpt.add_argument(
+        "--no-browser", action="store_true", help="print setup links without opening browser tabs"
+    )
+    chatgpt.add_argument(
+        "--no-keychain", action="store_true", help="do not read or save keys in the OS keychain"
+    )
+    chatgpt.add_argument(
+        "--forget-key", action="store_true", help="remove the saved runtime key and exit"
+    )
+    chatgpt.add_argument(
+        "--replace-key",
+        action="store_true",
+        help="prompt for a key, bypassing environment and keychain",
+    )
+
     install_client = commands.add_parser(
         "install-client",
         help="add this server to an MCP client (Claude, Cursor, VS Code, Gemini, Codex)",
@@ -392,6 +425,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_schedule(args)
     if args.command == "doctor":
         return cmd_doctor(args)
+    if args.command == "setup-chatgpt":
+        from garmin_connect_personal_mcp import chatgpt
+
+        return chatgpt.setup(
+            tunnel_id=args.tunnel_id,
+            profile=args.profile,
+            reuse_profile=args.reuse_profile,
+            no_start=args.no_start,
+            no_browser=args.no_browser,
+            no_keychain=args.no_keychain,
+            forget_key=args.forget_key,
+            replace_key=args.replace_key,
+        )
     if args.command == "serve":
         return cmd_serve(args)
     if args.command == "install-client":
