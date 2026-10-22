@@ -22,6 +22,19 @@ Full summary of one activity: duration, distance, pace or speed, heart rate and 
 | --- | --- | --- | --- |
 | `activity_id` | integer | required | From garmin_list_activities |
 
+## `garmin_get_chart_data`
+
+Widget-only: load plot points from the local archive for an already requested chart. Used when a host does not deliver component-only result metadata. Does not create another chart, sync data, or contact Garmin.
+
+*read-only, local only, widget-only data tool; does not open another chart*
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `metric` | one of `sleep_stages`, `awake_minutes`, `body_battery_charged`, `body_battery_drained`, `body_battery_high`, `body_battery_low`, … | required | Chart metric |
+| `start` | string | default `""` | YYYY-MM-DD, 'today' or 'yesterday' |
+| `end` | string | default `"today"` | YYYY-MM-DD, 'today' or 'yesterday' |
+| `bucket` | one of `day`, `week` | default `"day"` | Daily or weekly points |
+
 ## `garmin_get_day`
 
 Sleep, HRV and daily summary (steps, resting heart rate, stress, Body Battery, calories) for one date, plus that day's activities. Each dataset has a status: data, no_data (checked, nothing recorded), not_synced or sync_failed. Missing values are null.

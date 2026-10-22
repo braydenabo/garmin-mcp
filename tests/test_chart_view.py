@@ -396,3 +396,65 @@ check().catch(error => {console.error(error); process.exitCode = 1;});
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+@node
+@pytest.mark.parametrize("error", [False, True])
+def test_summary_only_result_loads_points_without_remounting(error: bool) -> None:
+    harness = r"""
+const vm = require("node:vm"), assert = require("node:assert/strict");
+const sent = [], listeners = {};
+const parent = {postMessage: m => sent.push(m)};
+const app = {innerHTML: "", getBoundingClientRect: () => ({height: 300, width: 640})};
+const context = {
+  window: {parent, addEventListener: (name, fn) => {listeners[name] = fn;}},
+  document: {getElementById: () => app, querySelector: () => ({addEventListener() {}})}
+};
+vm.createContext(context);
+vm.runInContext(SCRIPT, context);
+const summary = {metric: DATA.metric, start: DATA.start, end: DATA.end, bucket: DATA.bucket};
+function deliver(data) {listeners.message({source: parent, data});}
+async function check() {
+  deliver({method: "ui/notifications/tool-result", params: {structuredContent: summary}});
+  assert.equal(sent.filter(m => m.method === "tools/call").length, 0);
+  const init = sent.find(m => m.method === "ui/initialize");
+  deliver({id: init.id, result: {hostContext: {}}});
+  await Promise.resolve();
+  const calls = sent.filter(m => m.method === "tools/call");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].params.name, "garmin_get_chart_data");
+  assert.equal(JSON.stringify(calls[0].params.arguments), JSON.stringify(summary));
+  const ready = sent.findIndex(m => m.method === "ui/notifications/initialized");
+  assert.ok(ready < sent.indexOf(calls[0]));
+  deliver({method: "ui/notifications/tool-result", params: {structuredContent: summary}});
+  assert.equal(sent.filter(m => m.method === "tools/call").length, 1);
+  deliver({id: calls[0].id, result: ERROR ? {isError: true} : {structuredContent: DATA}});
+  await Promise.resolve();
+  assert.equal((app.innerHTML.match(/<svg /g) || []).length, ERROR ? 0 : 1);
+  assert.equal(app.innerHTML.includes("Chart unavailable"), ERROR);
+  if (!ERROR) {
+    const a = {...summary, start: "2026-03-10"}, b = {...summary, start: "2026-03-11"};
+    deliver({method: "ui/notifications/tool-result", params: {structuredContent: a}});
+    deliver({method: "ui/notifications/tool-result", params: {structuredContent: b}});
+    const queued = sent.filter(m => m.method === "tools/call");
+    assert.equal(queued.length, 3);
+    deliver({id: queued[2].id, result: {structuredContent: {...DATA, title: "Latest result"}}});
+    deliver({id: queued[1].id, result: {structuredContent: DATA}});
+    await Promise.resolve();
+    assert.ok(app.innerHTML.includes("Latest result")); // stale reply must not overwrite it
+    assert.equal((app.innerHTML.match(/<svg /g) || []).length, 1);
+  }
+}
+check().catch(error => {console.error(error); process.exitCode = 1;});
+"""
+    code = (
+        "const SCRIPT = "
+        + json.dumps(SCRIPT)
+        + "; const DATA = "
+        + json.dumps(chart())
+        + "; const ERROR = "
+        + json.dumps(error)
+        + ";\n"
+        + harness
+    )
+    subprocess.run([str(NODE), "-e", code], capture_output=True, text=True, check=True)

@@ -55,7 +55,7 @@ TOOLSETS: dict[str, tuple[str, ...]] = {
     "daily": ("garmin_get_day", "garmin_get_trend"),
     "activities": ("garmin_list_activities", "garmin_get_activity"),
     "sync": ("garmin_sync",),
-    "charts": ("garmin_show_chart",),
+    "charts": ("garmin_show_chart", "garmin_get_chart_data"),
 }
 # UI resource URIs are host cache keys. Content-address them so HTML/CSS fixes
 # become visible after the client refreshes its tool metadata.
@@ -557,6 +557,9 @@ def build_server(
         extensions=[_chart_apps(paths, today)] if "charts" in toolsets else None,
     )
 
+    if "charts" in toolsets:
+        _register_chart_data_tool(server, paths, today)
+
     @server.tool(
         name="garmin_describe_data",
         title="Describe the Garmin data",
@@ -687,3 +690,33 @@ def build_server(
                 server.remove_tool(name)
 
     return server
+
+
+def _register_chart_data_tool(
+    server: MCPServer, paths: DataPaths, today: Callable[[], date]
+) -> None:
+    @server.tool(
+        name="garmin_get_chart_data",
+        title="Load chart data for the widget",
+        description=(
+            "Widget-only: load plot points from the local archive for an already requested "
+            "chart. Used when a host does not deliver component-only result metadata. "
+            "Does not create another chart, sync data, or contact Garmin."
+        ),
+        annotations=READ_ONLY,
+        meta={"ui": {"visibility": ["app"]}},
+    )
+    def garmin_get_chart_data(
+        metric: Annotated[
+            str, Field(description="Chart metric", json_schema_extra={"enum": charts.CHART_METRICS})
+        ],
+        start: Annotated[str, Field(description="YYYY-MM-DD, 'today' or 'yesterday'")] = "",
+        end: Annotated[str, Field(description="YYYY-MM-DD, 'today' or 'yesterday'")] = "today",
+        bucket: Annotated[
+            Literal["day", "week"], Field(description="Daily or weekly points")
+        ] = "day",
+    ) -> charts.ChartData:
+        now = today()
+        end_date = parse_date(end, now)
+        start_date = parse_date(start, now) if start else end_date - timedelta(days=29)
+        return show_chart(paths, metric, start_date, end_date, bucket)

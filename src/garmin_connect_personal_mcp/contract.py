@@ -72,8 +72,10 @@ def tools_markdown(paths: DataPaths) -> str:
         hints = tool["annotations"]
         flags = ["read-only" if hints.get("read_only_hint") else "writes the local archive"]
         flags.append("contacts Garmin" if hints.get("open_world_hint") else "local only")
-        if tool["meta"].get("ui"):
+        if tool["meta"].get("ui", {}).get("resourceUri"):
             flags.append("shows an interactive chart in apps that support MCP Apps")
+        elif tool["meta"].get("ui", {}).get("visibility") == ["app"]:
+            flags.append("widget-only data tool; does not open another chart")
         lines += [f"## `{tool['name']}`", "", tool["description"], "", f"*{', '.join(flags)}*", ""]
         rows = _param_rows(tool["input_schema"])
         if rows:

@@ -120,6 +120,37 @@ def test_ui_empty_chart_preserves_missing_data_and_summary() -> None:
     assert result.meta["garmin/chart"]["series"][0]["values"] == [None] * 30
 
 
+def test_widget_data_call_is_read_only_app_only_and_has_no_render_template() -> None:
+    seed_sleep()
+
+    async def go(client: Client) -> Any:
+        tools = {tool.name: tool for tool in (await client.list_tools()).tools}
+        result = await client.call_tool(
+            "garmin_get_chart_data", {"metric": "sleep_hours", "start": "2026-03-09"}
+        )
+        return tools["garmin_get_chart_data"], result
+
+    tool, result = with_client(go, ui=True, read_only=True)
+    assert tool.meta == {"ui": {"visibility": ["app"]}}
+    assert "resourceUri" not in tool.meta["ui"]  # must not mount a second widget
+    assert tool.annotations.read_only_hint is True
+    assert tool.annotations.open_world_hint is False
+    assert not result.is_error
+    assert result.structured_content["series"][0]["values"] == [7.5] * 7
+
+
+def test_widget_data_call_keeps_chart_range_limits() -> None:
+    seed_sleep()
+
+    async def go(client: Client) -> Any:
+        return await client.call_tool(
+            "garmin_get_chart_data", {"metric": "sleep_hours", "start": "2024-01-01"}
+        )
+
+    result = with_client(go, ui=True)
+    assert result.is_error and "bucket='week'" in result.content[0].text
+
+
 def test_chart_defaults_to_30_days_and_guides_errors() -> None:
     seed_sleep()
 
@@ -154,7 +185,7 @@ def test_charts_toolset_can_be_turned_off() -> None:
     names, resources = with_client(go, toolsets=("daily", "activities", "sync"))
     assert "garmin_show_chart" not in names and resources == []
     names, _ = with_client(go, toolsets=("charts",))
-    assert names == {"garmin_describe_data", "garmin_show_chart"}
+    assert names == {"garmin_describe_data", "garmin_show_chart", "garmin_get_chart_data"}
 
 
 def test_serve_includes_charts_by_default(monkeypatch: Any) -> None:

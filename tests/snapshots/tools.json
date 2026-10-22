@@ -645,6 +645,225 @@
       "open_world_hint": false,
       "read_only_hint": true
     },
+    "description": "Widget-only: load plot points from the local archive for an already requested chart. Used when a host does not deliver component-only result metadata. Does not create another chart, sync data, or contact Garmin.",
+    "input_schema": {
+      "properties": {
+        "bucket": {
+          "default": "day",
+          "description": "Daily or weekly points",
+          "enum": [
+            "day",
+            "week"
+          ],
+          "title": "Bucket",
+          "type": "string"
+        },
+        "end": {
+          "default": "today",
+          "description": "YYYY-MM-DD, 'today' or 'yesterday'",
+          "title": "End",
+          "type": "string"
+        },
+        "metric": {
+          "description": "Chart metric",
+          "enum": [
+            "sleep_stages",
+            "awake_minutes",
+            "body_battery_charged",
+            "body_battery_drained",
+            "body_battery_high",
+            "body_battery_low",
+            "calories_active_kcal",
+            "calories_total_kcal",
+            "deep_sleep_minutes",
+            "distance_km",
+            "floors_climbed",
+            "hrv_baseline_high_ms",
+            "hrv_baseline_low_ms",
+            "hrv_last_night_ms",
+            "hrv_weekly_avg_ms",
+            "intensity_minutes_moderate",
+            "intensity_minutes_vigorous",
+            "light_sleep_minutes",
+            "max_hr_bpm",
+            "min_hr_bpm",
+            "rem_sleep_minutes",
+            "respiration_avg_brpm",
+            "resting_hr_bpm",
+            "sleep_avg_hr_bpm",
+            "sleep_avg_respiration_brpm",
+            "sleep_hours",
+            "sleep_score",
+            "step_goal",
+            "steps",
+            "stress_avg",
+            "stress_max"
+          ],
+          "title": "Metric",
+          "type": "string"
+        },
+        "start": {
+          "default": "",
+          "description": "YYYY-MM-DD, 'today' or 'yesterday'",
+          "title": "Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric"
+      ],
+      "title": "garmin_get_chart_dataArguments",
+      "type": "object"
+    },
+    "meta": {
+      "ui": {
+        "visibility": [
+          "app"
+        ]
+      }
+    },
+    "name": "garmin_get_chart_data",
+    "output_schema": {
+      "$defs": {
+        "Series": {
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "role": {
+              "description": "Colour hint for the chart view",
+              "title": "Role",
+              "type": "string"
+            },
+            "values": {
+              "description": "One per label; null means no data",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "title": "Values",
+              "type": "array"
+            }
+          },
+          "required": [
+            "name",
+            "role",
+            "values"
+          ],
+          "title": "Series",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "average": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mean of the plotted totals over days with data",
+          "title": "Average"
+        },
+        "bucket": {
+          "enum": [
+            "day",
+            "week"
+          ],
+          "title": "Bucket",
+          "type": "string"
+        },
+        "days_with_data": {
+          "title": "Days With Data",
+          "type": "integer"
+        },
+        "end": {
+          "title": "End",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "bar",
+            "line",
+            "stacked"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "labels": {
+          "description": "Dates (or week-start dates), oldest first",
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "series": {
+          "items": {
+            "$ref": "#/$defs/Series"
+          },
+          "title": "Series",
+          "type": "array"
+        },
+        "start": {
+          "title": "Start",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "metric",
+        "unit",
+        "kind",
+        "bucket",
+        "start",
+        "end",
+        "labels",
+        "series",
+        "average",
+        "days_with_data",
+        "notes"
+      ],
+      "title": "ChartData",
+      "type": "object"
+    },
+    "title": "Load chart data for the widget"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
     "description": "Sleep, HRV and daily summary (steps, resting heart rate, stress, Body Battery, calories) for one date, plus that day's activities. Each dataset has a status: data, no_data (checked, nothing recorded), not_synced or sync_failed. Missing values are null.",
     "input_schema": {
       "properties": {
@@ -1421,7 +1640,7 @@
     },
     "meta": {
       "ui": {
-        "resourceUri": "ui://garmin/chart-1a5907a0be4efa99.html"
+        "resourceUri": "ui://garmin/chart-51884e15231fd82b.html"
       }
     },
     "name": "garmin_show_chart",

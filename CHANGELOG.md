@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Fixed
 
+- Charts can now recover when a host delivers the public summary without the hidden plot metadata. The existing widget loads its points through the read-only, app-only `garmin_get_chart_data` tool, after initialization and without mounting another widget. Repeated notifications are deduplicated, stale replies are ignored, and failed loads show an actionable message.
 - UI-capable chart calls now send plot arrays through component-only result metadata rather than model-visible JSON, reducing the data available for redundant assistant-generated charts. The model receives average/coverage summaries and a rendered-chart acknowledgement. Non-UI clients keep the original full structured/text fallback. The output schema deliberately makes `labels` and `series` optional; tool names and inputs are unchanged.
 - Background status checks no longer fail by trying to reserve the running tunnel's health-listener port. Live-agent checks use a temporary loopback port without changing or restarting the daemon. Local configuration failures no longer suggest replacing the API key, and status hints show the complete CLI command.
 - Tunnel runners now reject duplicate instances for the same profile and archive using a crash-released OS lock. Background child processes are stopped with their runner rather than left orphaned.

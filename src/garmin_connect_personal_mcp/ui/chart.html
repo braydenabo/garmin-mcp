@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garmin chart</title>
-<!--
-  Self-contained MCP Apps chart; no external scripts, fonts or requests.
--->
 <style>
   :root {
     color-scheme: light dark;
@@ -94,7 +91,6 @@ function axisLabel(iso, count, bucket) {
   return count <= 7 ? DAYS[d.getUTCDay()] : String(d.getUTCDate());
 }
 
-// Durations read as "8h 18m"; everything else as a rounded number.
 function parts(v, unit) {
   if (!has(v)) return { n: "—", u: "" };
   var minutes = unit === "hours" ? v * 60 : unit === "minutes" ? v : null;
@@ -120,7 +116,6 @@ function accent(data) {
   return "activity";
 }
 
-// A round gridline step giving about three lines across `range` (hours step in whole hours).
 function niceStep(range, unit) {
   if (unit === "hours") return range <= 6 ? 2 : range <= 9 ? 3 : 4;
   var raw = Math.max(range, 1e-9) / 3, mag = Math.pow(10, Math.floor(Math.log10(raw)));
@@ -155,7 +150,6 @@ function linePath(pts) {
   return pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
 }
 
-// Pure SVG renderer.
 function renderChart(data) {
   var n = data.labels.length, s = scale(data), stacked = data.kind === "stacked";
   var plotW = W - PAD.left - PAD.right, plotH = H - PAD.top - PAD.bottom, slot = plotW / Math.max(n, 1);
@@ -225,7 +219,6 @@ function renderChart(data) {
   return out.join("");
 }
 
-// Average or selected-day headline.
 function renderHeader(data, sel) {
   var picked = has(sel) && sel >= 0 && sel < data.labels.length;
   var value = picked ? (data.kind === "stacked" ? totals(data)[sel] : data.series[0].values[sel]) : data.average;
@@ -250,8 +243,7 @@ function renderView(data, sel) {
   out.push('<div class="chart" tabindex="0" aria-label="' + esc(data.title + " chart. Use arrow keys to step through days.") + '">' + renderChart(data) + "</div>");
   out.push('<div id="legend">' + renderLegend(data, sel) + "</div>");
   data.notes.forEach(function (note) { out.push('<p class="note">' + esc(note) + "</p>"); });
-  // A table's minimum row height can defeat height:1px. Clip a wrapper instead,
-  // anchored at the app's top so hidden rows never extend the scrollable page.
+  // Clip the wrapper: table rows cannot collapse to 1px.
   out.push('<div class="sr"><table><tr><th>Date</th>' + data.series.map(function (s) { return "<th>" + esc(s.name) + "</th>"; }).join("") + "</tr>" +
     data.labels.map(function (label, i) {
       return "<tr><td>" + esc(label) + "</td>" + data.series.map(function (s) { return "<td>" + esc(fmt(s.values[i], data.unit)) + "</td>"; }).join("") + "</tr>";
@@ -259,7 +251,6 @@ function renderView(data, sel) {
   return out.join("");
 }
 
-// Pointer and keyboard day selection.
 
 var current = null, selected = null;
 
@@ -303,9 +294,9 @@ function show(data) {
   reportSize();
 }
 
-// MCP Apps bridge.
 
 var nextId = 1, pending = {}, lastHeight = 0, lastIntrinsicHeight = 0, hostReady = false;
+var query = null, loadKey = "", generation = 0;
 
 function send(message) { window.parent.postMessage(message, "*"); }
 
@@ -317,7 +308,6 @@ function request(method, params) {
 
 function notify(method, params) { send({ jsonrpc: "2.0", method: method, params: params || {} }); }
 
-// Full plot arrays are widget-only. Older servers put them in structuredContent.
 function chartDataFromResult(result, metadata) {
   var candidates = [result, metadata, metadata && metadata.call_tool_result,
     metadata && metadata.mcp_tool_result];
@@ -330,6 +320,33 @@ function chartDataFromResult(result, metadata) {
   return legacy && Array.isArray(legacy.labels) && Array.isArray(legacy.series) ? legacy : null;
 }
 
+function receive(result, metadata) {
+  var data = chartDataFromResult(result, metadata);
+  if (data) { generation++; query = null; show(data); return; }
+  query = (result && result.structuredContent) || query;
+  if (query && query.metric) loadPlot();
+  else reportSize();
+}
+
+function fail() {
+  document.getElementById("app").innerHTML = '<p class="range">Chart unavailable. Refresh GarminMCP tools and request it again.</p>';
+  reportSize();
+}
+
+function loadPlot() {
+  if (!hostReady || !query) return;
+  var args = {metric: query.metric, start: query.start, end: query.end, bucket: query.bucket};
+  var key = JSON.stringify(args);
+  if (loadKey === key) return;
+  loadKey = key;
+  var ticket = ++generation;
+  request("tools/call", {name: "garmin_get_chart_data", arguments: args}).then(function (result) {
+    if (ticket !== generation) return;
+    var data = !result.isError && chartDataFromResult(result);
+    if (data) show(data); else fail();
+  }, function () { if (ticket === generation) fail(); });
+}
+
 function applyContext(ctx) {
   if (!ctx) return;
   if (ctx.theme) document.documentElement.setAttribute("data-theme", ctx.theme);
@@ -337,7 +354,6 @@ function applyContext(ctx) {
   if (vars) Object.keys(vars).forEach(function (k) { if (vars[k]) document.documentElement.style.setProperty(k, vars[k]); });
 }
 
-// Report the content's height, not the frame's, so the host can shrink the frame to fit.
 function reportSize(force) {
   if (!hostReady) return;
   var app = document.getElementById("app"), height = Math.ceil(app.getBoundingClientRect().height);
@@ -345,8 +361,6 @@ function reportSize(force) {
     lastHeight = height;
     notify("ui/notifications/size-changed", { width: Math.ceil(app.getBoundingClientRect().width), height: height });
   }
-  // Feature-detect the ChatGPT bridge; deduplicate independently so echoed host
-  // updates cannot create a resize loop. Other hosts retain the standard path.
   if (height && height !== lastIntrinsicHeight && window.openai &&
       typeof window.openai.notifyIntrinsicHeight === "function") {
     lastIntrinsicHeight = height;
@@ -365,12 +379,7 @@ function start() {
       return;
     }
     if (msg.method === "ui/notifications/tool-result") {
-      var data = chartDataFromResult(msg.params, window.openai && window.openai.toolResponseMetadata);
-      if (data) show(data);
-      else {
-        document.getElementById("app").innerHTML = '<p class="range">No chart data in this result.</p>';
-        reportSize();
-      }
+      receive(msg.params, window.openai && window.openai.toolResponseMetadata);
     } else if (msg.method === "ui/notifications/host-context-changed") {
       applyContext(msg.params);
       reportSize(true);
@@ -379,9 +388,7 @@ function start() {
   if (window.ResizeObserver) new ResizeObserver(function () { reportSize(); }).observe(document.getElementById("app"));
   function globalsChanged() {
     if (!current && window.openai) {
-      var data = chartDataFromResult({ structuredContent: window.openai.toolOutput },
-        window.openai.toolResponseMetadata);
-      if (data) show(data);
+      receive({structuredContent: window.openai.toolOutput}, window.openai.toolResponseMetadata);
     }
     reportSize();
   }
@@ -391,6 +398,7 @@ function start() {
   function initialized() {
     notify("ui/notifications/initialized");
     hostReady = true;
+    loadPlot();
     reportSize(true);
   }
   request("ui/initialize", {
