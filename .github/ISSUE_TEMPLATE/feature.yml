@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest a new tool, metric, client or improvement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to ask your assistant, or do, that you can't today?
+      description: An example prompt helps, e.g. "Did my VO2 max change after my training block?"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Optional. Which data or Garmin endpoint would this need?
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and discussions.
+          required: true

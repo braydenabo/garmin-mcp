@@ -1,0 +1,53 @@
+name: Bug report
+description: Something doesn't work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste your API key, tokens, database files or real health data.** This issue is public. Replace personal values (dates, activity IDs, numbers) with placeholders if they aren't needed to reproduce the bug.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `garmin-connect-personal-mcp doctor`
+      description: Its output is redacted and safe to share. If the command doesn't exist yet in your version, paste `garmin-connect-personal-mcp --version` instead.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: MCP client
+      options:
+        - Claude Desktop
+        - Claude Code
+        - ChatGPT
+        - Gemini CLI
+        - Cursor
+        - VS Code
+        - Codex CLI
+        - Goose
+        - Not client-related (CLI or sync)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Linux, Windows, Docker]
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log lines
+      description: Check them for anything personal before posting.
+      render: text

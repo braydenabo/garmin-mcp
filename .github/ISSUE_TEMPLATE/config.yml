@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Setup help and questions
+    url: https://github.com/braydenabo/garmin-mcp/discussions
+    about: Ask how to install or connect a client, or anything else that isn't a bug.
+  - name: Report a security vulnerability
+    url: https://github.com/braydenabo/garmin-mcp/security/advisories/new
+    about: Please report security problems privately, not as a public issue.
