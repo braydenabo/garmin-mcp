@@ -18,7 +18,10 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-dependencies = []
+dependencies = [
+    "garmin-connect-personal-api-python~=1.0.0",
+    "platformdirs>=4.2",
+]
 
 [project.urls]
 Repository = "https://github.com/braydenabo/garmin-mcp"

@@ -18,7 +18,7 @@ uv run mypy                  # strict
 
 ## Hard rules: this is a public repository
 
-1. **Never commit secrets.** No API keys, tokens, `.env` files or token caches. Keys live in `~/.config/garmin/connect-personal-api-key` or `GARMIN_API_KEY`.
+1. **Never commit secrets.** No API keys, tokens, `.env` files or token caches. Keys live in `~/.config/garmin/connect-personal-api-key` or `GARMIN_PERSONAL_API_KEY`.
 2. **Never commit personal data.** No real health data, FIT/GPX/TCX files, databases, real activity IDs, GPS coordinates, or screenshots of real data. Test fixtures and doc examples use synthetic values only. Never record real API responses as fixtures.
 3. **Never commit planning documents.** Plans stay in the gitignored `.plans/` directory.
 4. Do not weaken `.gitignore`, `scripts/check_*.py`, `.pre-commit-config.yaml` or the CI guard job to get a commit through.
