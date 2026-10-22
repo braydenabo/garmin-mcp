@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- Optional Streamable HTTP transport at `/mcp` for MCP clients and Secure MCP Tunnel. It binds to loopback by default and requires `GARMIN_MCP_HTTP_BEARER_TOKEN` before accepting non-loopback binds. Authentication and bind validation are covered by offline tests; invalid settings are rejected before any startup sync.
 - ChatGPT setup now offers to download and checksum-verify the official tunnel client for macOS, Linux or Windows, installs it privately without PATH changes, and opens the account and ChatGPT setup pages in your browser. `--no-browser` supports headless setups.
 - Charts now show metric-specific colors, rounded bars, duration formatting, average/selected-day headings, keyboard selection and a sleep-stage legend.
 - `garmin_show_chart`: when you ask to see your data, apps that support MCP Apps (Claude Desktop, claude.ai, ChatGPT, VS Code) show an interactive chart: bars for totals, lines for levels, stacked sleep stages, with gaps for days without data. The chart page is self-contained and works offline; other apps get the same data as text. It can be turned off with the `charts` toolset.

@@ -2,6 +2,7 @@
 
 import argparse
 import getpass
+import ipaddress
 import os
 import sys
 from collections.abc import Sequence
@@ -105,13 +106,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     serve = commands.add_parser(
         "serve",
-        help="run the MCP server over stdio (what MCP clients launch)",
+        help="run the MCP server over stdio, or Streamable HTTP with --http",
         description=(
-            "Run the MCP server over stdio. MCP clients such as Claude Desktop, Claude Code, "
-            "Cursor and Gemini CLI start this command themselves; you rarely run it by hand. "
-            "Each option can also be set with the environment variable shown."
+            "Run the MCP server over stdio for local MCP clients, or Streamable HTTP at /mcp "
+            "for remote clients and Secure MCP Tunnel. HTTP binds to localhost by default. "
+            "Non-loopback HTTP binds require GARMIN_MCP_HTTP_BEARER_TOKEN."
         ),
     )
+    serve.add_argument("--http", action="store_true", help="use Streamable HTTP instead of stdio")
+    serve.add_argument("--host", default="127.0.0.1", help="HTTP bind host (default: 127.0.0.1)")
+    serve.add_argument("--port", type=int, default=8000, help="HTTP port (default: 8000)")
     serve.add_argument(
         "--read-only",
         action="store_true",
@@ -341,6 +345,23 @@ def cmd_serve(args: argparse.Namespace) -> int:
     from garmin_connect_personal_mcp import autosync
     from garmin_connect_personal_mcp.server import build_server
 
+    bearer_token = os.environ.get("GARMIN_MCP_HTTP_BEARER_TOKEN", "")
+    if args.http:
+        if not 1 <= args.port <= 65535:
+            print("Error: --port must be between 1 and 65535.", file=sys.stderr)
+            return 2
+        try:
+            is_loopback = ipaddress.ip_address(args.host).is_loopback
+        except ValueError:
+            is_loopback = args.host.lower() == "localhost"
+        if not is_loopback and not bearer_token.strip():
+            print(
+                "Error: HTTP can bind to a non-loopback address only when "
+                "GARMIN_MCP_HTTP_BEARER_TOKEN is set.",
+                file=sys.stderr,
+            )
+            return 2
+
     toolsets = tuple(t.strip() for t in args.toolsets.split(",") if t.strip())
     paths = config.data_paths()
     try:
@@ -350,7 +371,13 @@ def cmd_serve(args: argparse.Namespace) -> int:
         return 2
     if args.auto_sync and not args.read_only:
         autosync.start_if_stale(paths)
-    server.run("stdio")
+    if not args.http:
+        server.run("stdio")
+        return 0
+
+    from garmin_connect_personal_mcp.http_server import run_http
+
+    run_http(server, host=args.host, port=args.port, bearer_token=bearer_token)
     return 0
 
 
