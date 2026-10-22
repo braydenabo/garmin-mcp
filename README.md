@@ -10,16 +10,54 @@ It syncs Garmin's official [Personal API](https://developer.garmin.com/gc-develo
 
 ## Status
 
-**Pre-alpha. Nothing works yet.** The repository is being set up. Follow the [releases](https://github.com/braydenabo/garmin-mcp/releases) for the first usable version.
+**Alpha.** Syncing, the local archive and the MCP server work and are tested on macOS, Linux and Windows. The package isn't on PyPI yet, so install it from GitHub (below). ChatGPT support needs the remote server, which is planned.
 
-## How it will work
+## Quickstart
 
-1. Create a Personal API key in [Garmin Connect](https://connect.garmin.com/app/settings/personalApiToken).
-2. `uvx garmin-connect-personal-mcp init`: stores the key privately.
-3. `uvx garmin-connect-personal-mcp sync`: downloads the last week into a local archive. Run it again any time; it picks up where it left off.
-4. `garmin-connect-personal-mcp schedule install`: syncs automatically once a day (optional, recommended). Garmin's API won't backfill old days on request, so a daily sync keeps your history complete. Use a lasting install for this (`uv tool install garmin-connect-personal-mcp`), not `uvx`.
-5. `uvx garmin-connect-personal-mcp install-client claude`: adds the server to your assistant (or `cursor`, `vscode`, `gemini`, `codex`).
-6. Ask: *"How did I sleep last night?"*
+You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and a Garmin Personal API key.
+
+1. **Install:**
+
+   ```bash
+   uv tool install git+https://github.com/braydenabo/garmin-mcp
+   ```
+
+2. **Save your key.** Create one in [Garmin Connect](https://connect.garmin.com/app/settings/personalApiToken), then paste it at the hidden prompt:
+
+   ```bash
+   garmin-connect-personal-mcp init
+   ```
+
+3. **Download your data** (the last 90 days; later runs pick up where they left off):
+
+   ```bash
+   garmin-connect-personal-mcp sync --days-back 90
+   ```
+
+4. **Keep it up to date** (optional, recommended). Garmin's API won't fill in old days on request, so a daily sync keeps your history complete:
+
+   ```bash
+   garmin-connect-personal-mcp schedule install
+   ```
+
+5. **Connect your assistant.** Run it without `--write` first to see what it will change:
+
+   ```bash
+   garmin-connect-personal-mcp install-client claude-desktop --write
+   ```
+
+   Other clients: `claude-code`, `cursor`, `vscode`, `gemini`, `codex`. See [docs/clients](docs/clients/README.md) for each one.
+
+6. **Ask:** *"How did I sleep last night?"*
+
+## What you can ask
+
+- "Summarize my training and recovery this week."
+- "Is my resting heart rate lower than three months ago?"
+- "How has my weekly running distance built up since July?"
+- "Anything unusual in my HRV lately?"
+
+The assistant uses six tools: `garmin_describe_data`, `garmin_get_day`, `garmin_get_trend`, `garmin_list_activities`, `garmin_get_activity` and `garmin_sync`. See [docs/tools.md](docs/tools.md). Missing data is reported as missing, never as zero.
 
 ## Troubleshooting
 
@@ -35,8 +73,8 @@ It checks your API key, Garmin access, the local archive, recent sync errors and
 
 - **You run it yourself, with your own key.** There is no hosted service, and your data never passes through this project.
 - Your archive and API key stay on your machine, outside this repository.
-- Every tool is read-only towards Garmin. The only network call goes to Garmin's own API, to sync.
-- Remote (HTTP) mode is opt-in and refuses to listen on a network without authentication.
+- The only network calls go to Garmin's own API, to sync. `serve --read-only` turns even that off.
+- Tools never return your name, profile photos or GPS coordinates, even though Garmin's records contain them, so a cloud assistant isn't told where you live.
 
 ## Development
 
