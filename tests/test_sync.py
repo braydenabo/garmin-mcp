@@ -36,6 +36,8 @@ class FakeClient:
         self.fail: dict[Any, int] = {}
         self.skip: set[tuple[str, str]] = set()
         self.activities: list[Any] = []
+        self.page_cap: int | None = None  # simulate a server that caps page size
+        self.ignore_offset = False  # simulate a server that ignores `start`
         self.calls: list[tuple[str, Any, Any]] = []
         self.downloads: list[int] = []
 
@@ -79,7 +81,9 @@ class FakeClient:
         if "search_activities" in self.fail:
             code = self.fail["search_activities"]
             raise GarminError(f"HTTP {code}", status_code=code)
-        return self.activities[start : start + limit]
+        size = min(limit, self.page_cap or limit)
+        offset = 0 if self.ignore_offset else start
+        return self.activities[offset : offset + size]
 
     def download_activity(self, activity_id: int) -> bytes:
         if activity_id in self.fail:
@@ -267,11 +271,30 @@ def test_activities_are_paged_and_stored(client: FakeClient, paths: DataPaths) -
     client.activities.append({"activityId": "not-an-int"})
     report = run(client, paths)
     assert report.activities == sync.ACTIVITY_PAGE_SIZE + 5
-    assert [s for s, _ in client.requests_for("activities")] == [0, sync.ACTIVITY_PAGE_SIZE]
+    page = sync.ACTIVITY_PAGE_SIZE
+    assert [s for s, _ in client.requests_for("activities")] == [0, page, page + 6]
     row = open_db(paths).execute("SELECT * FROM activities WHERE activity_id = 1000").fetchone()
     assert row["calendar_date"] == TODAY.isoformat()
     assert row["start_time_utc"] == f"{TODAY.isoformat()} 12:00:00"
     assert row["activity_type"] == "running"
+
+
+def test_activities_complete_when_server_caps_page_size(
+    client: FakeClient, paths: DataPaths
+) -> None:
+    client.activities = [activity(n) for n in range(120)]
+    client.page_cap = 50
+    report = run(client, paths)
+    assert report.activities == 120
+    assert [s for s, _ in client.requests_for("activities")] == [0, 50, 100, 120]
+
+
+def test_activities_stop_if_server_ignores_offset(client: FakeClient, paths: DataPaths) -> None:
+    client.activities = [activity(n) for n in range(10)]
+    client.ignore_offset = True
+    report = run(client, paths)
+    assert report.activities == 10
+    assert len(client.requests_for("activities")) == 2
 
 
 def test_activity_with_odd_fields_is_still_archived(client: FakeClient, paths: DataPaths) -> None:

@@ -73,7 +73,8 @@ ACTIVITIES = "activities"
 FIRST_SYNC_DAYS = 7
 RECHECK_DAYS = 2
 RETRY_ERRORS_WITHIN_DAYS = 365
-ACTIVITY_PAGE_SIZE = 100
+ACTIVITY_PAGE_SIZE = 99  # Garmin's documented default page size
+MAX_ACTIVITY_PAGES = 200  # safety stop if the server ever ignores the offset
 
 
 class Api(Protocol):
@@ -251,17 +252,23 @@ def sync_activities(
     days = days_to_sync(conn, ACTIVITIES, today, days_back)
     start, end = days[0], days[-1]
     offset = 0
+    seen: set[int] = set()
     try:
-        while True:
-            progress("Activities", offset // ACTIVITY_PAGE_SIZE, 0, f"{start} to {end}")
+        # Page until Garmin returns nothing new. A short page isn't a reliable end
+        # marker, since the server may cap the page size below what was asked for.
+        for page_number in range(MAX_ACTIVITY_PAGES):
+            progress("Activities", page_number, 0, f"{start} to {end}")
             page = api.call(_activity_page(offset, start, end))
             pause()
             items = page if isinstance(page, list) else []
+            new = 0
             with conn:
                 for item in items:
                     activity_id = item.get("activityId") if isinstance(item, dict) else None
-                    if not isinstance(activity_id, int):
+                    if not isinstance(activity_id, int) or activity_id in seen:
                         continue
+                    seen.add(activity_id)
+                    new += 1
                     start_gmt, local_date, kind = _activity_fields(item)
                     db.upsert_activity(
                         conn,
@@ -272,9 +279,9 @@ def sync_activities(
                         activity_type=kind,
                     )
                     report.activities += 1
-            if len(items) < ACTIVITY_PAGE_SIZE:
+            if not items or not new:
                 break
-            offset += ACTIVITY_PAGE_SIZE
+            offset += len(items)
     except GarminError as exc:
         with conn:
             for day in days:

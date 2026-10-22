@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- Activity sync keeps paging until Garmin returns nothing new, so it no longer stops early if Garmin sends smaller pages than requested.
 - `sync` command: downloads daily summaries, sleep, HRV, stress, steps, body battery, weight, activities and original FIT files into the archive. Uses Garmin's date-range endpoints (a 90-day sync is about 20 requests), shows progress, resumes where it left off, re-checks the last two days, retries failed days, and stops cleanly on rate limits.
 - Garmin API layer on top of Garmin's official client: retries with backoff on rate limits, server errors and network failures, one token refresh on HTTP 401, and error messages that say how to fix the problem.
 - Local SQLite archive that stores each Garmin response unchanged, with versioned migrations and a read-only mode for the server.
