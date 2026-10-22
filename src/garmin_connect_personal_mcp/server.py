@@ -12,7 +12,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from statistics import fmean
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -35,6 +35,19 @@ INSTRUCTIONS = (
 READ_ONLY = ToolAnnotations(
     read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
 )
+# Writes only to the local archive, safe to repeat, and talks to Garmin.
+SYNC = ToolAnnotations(
+    read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=True
+)
+
+# Toolsets let a client load fewer tools (smaller models choose better from fewer).
+# garmin_describe_data is always on.
+TOOLSETS: dict[str, tuple[str, ...]] = {
+    "daily": ("garmin_get_day", "garmin_get_trend"),
+    "activities": ("garmin_list_activities", "garmin_get_activity"),
+    "sync": ("garmin_sync",),
+}
+MAX_TOOL_SYNC_DAYS = 90
 
 NOTES = [
     "Dates are the user's local calendar dates.",
@@ -298,6 +311,59 @@ def get_activity(paths: DataPaths, activity_id: int) -> activities.ActivityDetai
     return found
 
 
+class SyncResult(BaseModel):
+    ok: bool
+    already_running: bool = False
+    days_saved: dict[str, int] = Field(default_factory=dict)
+    days_without_data: dict[str, int] = Field(default_factory=dict)
+    activities_listed: int = 0
+    fit_files_saved: int = 0
+    errors: list[str] = Field(default_factory=list)
+    message: str
+
+
+def sync_now(
+    paths: DataPaths, days_back: int, api_factory: Callable[[], Any] | None = None
+) -> SyncResult:
+    from garmin_connect_personal_mcp.garmin_client import GarminApi, GarminError
+    from garmin_connect_personal_mcp.sync import SyncAlreadyRunning, run_sync
+
+    if not 0 <= days_back <= MAX_TOOL_SYNC_DAYS:
+        raise ToolError(
+            f"days_back must be 0-{MAX_TOOL_SYNC_DAYS}. For a longer backfill the user can run "
+            f"`{PROG} sync --days-back N`."
+        )
+    try:
+        api = (api_factory or GarminApi)()
+    except GarminError as exc:
+        raise ToolError(f"{exc} (The user has to do this; you can't.)") from None
+    try:
+        with api:
+            report = run_sync(api, paths, days_back=days_back or None)
+    except SyncAlreadyRunning:
+        return SyncResult(
+            ok=False,
+            already_running=True,
+            message="A sync is already running. Wait a minute, then read the data again.",
+        )
+    errors = report.errors[:10]
+    if report.aborted:
+        message = f"Stopped early: {report.aborted} What was saved is kept."
+    elif errors:
+        message = "Synced, with some errors; failed days are retried on the next sync."
+    else:
+        message = "Synced. Read the data again to see the update."
+    return SyncResult(
+        ok=report.ok,
+        days_saved=report.days,
+        days_without_data=report.empty,
+        activities_listed=report.activities,
+        fit_files_saved=report.fit_files,
+        errors=errors,
+        message=message,
+    )
+
+
 def local_today() -> date:
     return datetime.now().astimezone().date()
 
@@ -360,7 +426,20 @@ def describe_data(paths: DataPaths) -> DataDescription:
         )
 
 
-def build_server(paths: DataPaths, today: Callable[[], date] = local_today) -> MCPServer:
+def build_server(
+    paths: DataPaths,
+    today: Callable[[], date] = local_today,
+    *,
+    toolsets: tuple[str, ...] = tuple(TOOLSETS),
+    read_only: bool = False,
+    api_factory: Callable[[], Any] | None = None,
+) -> MCPServer:
+    """The server with the chosen toolsets. read_only removes the only tool that calls Garmin."""
+    unknown = set(toolsets) - set(TOOLSETS)
+    if unknown:
+        raise ValueError(
+            f"Unknown toolset(s): {', '.join(sorted(unknown))}. Choose from: {', '.join(TOOLSETS)}."
+        )
     server = MCPServer(
         "garmin",
         title="Garmin (personal data)",
@@ -468,5 +547,31 @@ def build_server(paths: DataPaths, today: Callable[[], date] = local_today) -> M
         activity_id: Annotated[int, Field(description="From garmin_list_activities")],
     ) -> activities.ActivityDetail:
         return get_activity(paths, activity_id)
+
+    @server.tool(
+        name="garmin_sync",
+        title="Sync from Garmin",
+        description=(
+            "Download new data from Garmin into the archive. Use it when garmin_get_day says "
+            "not_synced or the latest data is old. By default it resumes from the last sync (a "
+            "few seconds). days_back re-checks up to 90 recent days."
+        ),
+        annotations=SYNC,
+    )
+    def garmin_sync(
+        days_back: Annotated[
+            int,
+            Field(description=f"0 to resume (default), or 1-{MAX_TOOL_SYNC_DAYS} days to re-check"),
+        ] = 0,
+    ) -> SyncResult:
+        return sync_now(paths, days_back, api_factory)
+
+    enabled = {name for toolset in toolsets for name in TOOLSETS[toolset]}
+    if read_only:
+        enabled -= set(TOOLSETS["sync"])
+    for toolset_tools in TOOLSETS.values():
+        for name in toolset_tools:
+            if name not in enabled:
+                server.remove_tool(name)
 
     return server

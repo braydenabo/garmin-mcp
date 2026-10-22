@@ -2,6 +2,7 @@
 
 import argparse
 import getpass
+import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -81,15 +82,40 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--offline", action="store_true", help="skip the request to Garmin")
     check.add_argument("--json", action="store_true", help="print the report as JSON")
 
-    commands.add_parser(
+    serve = commands.add_parser(
         "serve",
         help="run the MCP server over stdio (what MCP clients launch)",
         description=(
             "Run the MCP server over stdio. MCP clients such as Claude Desktop, Claude Code, "
-            "Cursor and Gemini CLI start this command themselves; you rarely run it by hand."
+            "Cursor and Gemini CLI start this command themselves; you rarely run it by hand. "
+            "Each option can also be set with the environment variable shown."
         ),
     )
+    serve.add_argument(
+        "--read-only",
+        action="store_true",
+        default=_env_flag("GARMIN_MCP_READ_ONLY"),
+        help="never contact Garmin: hide garmin_sync and skip auto-sync (GARMIN_MCP_READ_ONLY=1)",
+    )
+    serve.add_argument(
+        "--no-auto-sync",
+        dest="auto_sync",
+        action="store_false",
+        default=os.environ.get("GARMIN_MCP_AUTO_SYNC", "1") != "0",
+        help="don't sync on startup when the data is over a day old (GARMIN_MCP_AUTO_SYNC=0)",
+    )
+    serve.add_argument(
+        "--toolsets",
+        default=os.environ.get("GARMIN_MCP_TOOLSETS", "daily,activities,sync"),
+        metavar="LIST",
+        help="comma-separated: daily, activities, sync (GARMIN_MCP_TOOLSETS); "
+        "garmin_describe_data is always on",
+    )
     return parser
+
+
+def _env_flag(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes")
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -250,11 +276,21 @@ def _can_print(text: str) -> bool:
     return True
 
 
-def cmd_serve() -> int:
+def cmd_serve(args: argparse.Namespace) -> int:
     # Imported here so the rest of the CLI starts fast and doesn't need the MCP SDK loaded.
+    from garmin_connect_personal_mcp import autosync
     from garmin_connect_personal_mcp.server import build_server
 
-    build_server(config.data_paths()).run("stdio")
+    toolsets = tuple(t.strip() for t in args.toolsets.split(",") if t.strip())
+    paths = config.data_paths()
+    try:
+        server = build_server(paths, toolsets=toolsets, read_only=args.read_only)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
+    if args.auto_sync and not args.read_only:
+        autosync.start_if_stale(paths)
+    server.run("stdio")
     return 0
 
 
@@ -270,6 +306,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "doctor":
         return cmd_doctor(args)
     if args.command == "serve":
-        return cmd_serve()
+        return cmd_serve(args)
     parser.print_help()
     return 0
