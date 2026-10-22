@@ -17,7 +17,8 @@ from typing import Literal
 
 from garmin_personal_api import __version__ as garmin_client_version
 
-from garmin_connect_personal_mcp import __version__, config, db
+from garmin_connect_personal_mcp import __version__, config, db, schedule
+from garmin_connect_personal_mcp.garmin_client import GarminApi, GarminError
 from garmin_connect_personal_mcp.sync import SyncAlreadyRunning, sync_lock
 
 PROG = "garmin-connect-personal-mcp"
@@ -217,6 +218,40 @@ def check_log(
     return Check("Sync log", "ok", summary)
 
 
+def check_garmin(api_factory: Callable[[], GarminApi] | None = None) -> Check:
+    """Ask Garmin for an access token: proves the key works and Garmin is reachable."""
+    factory = api_factory or (lambda: GarminApi(max_retries=1))
+    try:
+        api = factory()
+    except GarminError as exc:
+        if exc.status_code == 429:
+            return Check("Garmin access", "warn", str(exc), fix="Wait a while, then try again.")
+        fix = None if exc.status_code == 401 else "Check your connection, then run doctor again."
+        return Check("Garmin access", "fail", str(exc), fix=fix)
+    api.close()
+    return Check("Garmin access", "ok", "Garmin accepted the API key")
+
+
+def check_schedule(
+    backend_factory: Callable[[], schedule.Backend] | None = None,
+    paths: config.DataPaths | None = None,
+) -> Check:
+    paths = paths or config.data_paths()
+    try:
+        backend = (backend_factory or schedule.choose_backend)()
+    except schedule.ScheduleError as exc:
+        return Check("Daily sync", "info", str(exc))
+    status = backend.status(paths)
+    if status.installed:
+        return Check("Daily sync", "ok", f"{status.detail} [{status.backend}]")
+    return Check(
+        "Daily sync",
+        "info",
+        f"not installed [{status.backend}]",
+        fix=f"Optional, recommended: `{PROG} schedule install`.",
+    )
+
+
 def local_checks(paths: config.DataPaths) -> list[Check]:
     return [
         check_versions(),
@@ -225,6 +260,26 @@ def local_checks(paths: config.DataPaths) -> list[Check]:
         check_sync_running(paths),
         check_log(paths),
     ]
+
+
+def run_checks(
+    paths: config.DataPaths,
+    *,
+    offline: bool = False,
+    api_factory: Callable[[], GarminApi] | None = None,
+    backend_factory: Callable[[], schedule.Backend] | None = None,
+) -> list[Check]:
+    """Every check, in report order. `offline` skips the one network request."""
+    checks = local_checks(paths)
+    key = next(c for c in checks if c.name == "API key")
+    if offline:
+        checks.insert(2, Check("Garmin access", "info", "skipped (--offline)"))
+    elif key.status == "fail":
+        checks.insert(2, Check("Garmin access", "info", "skipped (no API key)"))
+    else:
+        checks.insert(2, check_garmin(api_factory))
+    checks.append(check_schedule(backend_factory, paths))
+    return checks
 
 
 def as_dicts(checks: list[Check]) -> list[dict[str, object]]:
