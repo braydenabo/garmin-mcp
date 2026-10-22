@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- `sync --days-back` accepts 1 to 3650 days (10 years), to catch typos early.
 - Ctrl-C during `sync` stops cleanly instead of printing a traceback, keeps everything saved so far, and prints the command to continue.
 - Only one sync runs at a time: a second one (another terminal, or a scheduled run) exits with a clear message. The lock is released by the OS even if a sync crashes.
 - Activity sync keeps paging until Garmin returns nothing new, so it no longer stops early if Garmin sends smaller pages than requested.

@@ -440,5 +440,7 @@ def test_cli_sync_without_key_explains(capsys: pytest.CaptureFixture[str]) -> No
     assert "init" in capsys.readouterr().err
 
 
-def test_cli_sync_rejects_bad_days_back(capsys: pytest.CaptureFixture[str]) -> None:
-    assert cli.main(["sync", "--days-back", "0"]) == 2
+@pytest.mark.parametrize("days", ["0", "3651"])
+def test_cli_sync_rejects_bad_days_back(days: str, capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["sync", "--days-back", days]) == 2
+    assert "between 1 and 3650" in capsys.readouterr().err

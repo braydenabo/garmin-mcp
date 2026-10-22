@@ -11,6 +11,7 @@ from garmin_connect_personal_mcp.progress import ProgressDisplay
 from garmin_connect_personal_mcp.sync import DAILY_DATASETS, SyncAlreadyRunning, run_sync
 
 PROG = "garmin-connect-personal-mcp"
+MAX_DAYS_BACK = 3650  # 10 years; a guard against typos, not a Garmin limit
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -48,7 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--days-back",
         type=int,
         metavar="N",
-        help="sync the last N days (including today) instead of resuming",
+        help=f"sync the last N days (including today) instead of resuming; at most {MAX_DAYS_BACK}",
     )
     return parser
 
@@ -84,8 +85,8 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 
 def cmd_sync(args: argparse.Namespace) -> int:
-    if args.days_back is not None and args.days_back < 1:
-        print("Error: --days-back must be at least 1.", file=sys.stderr)
+    if args.days_back is not None and not 1 <= args.days_back <= MAX_DAYS_BACK:
+        print(f"Error: --days-back must be between 1 and {MAX_DAYS_BACK}.", file=sys.stderr)
         return 2
     paths = config.data_paths()
     config.ensure_data_dir(paths)
