@@ -15,9 +15,10 @@ It syncs Garmin's official [Personal API](https://developer.garmin.com/gc-develo
 ## How it will work
 
 1. Create a Personal API key in [Garmin Connect](https://connect.garmin.com/app/settings/personalApiToken).
-2. `uvx garmin-connect-personal-mcp init`: stores the key privately and runs a first sync.
-3. `uvx garmin-connect-personal-mcp install-client claude`: adds the server to your assistant (or `cursor`, `vscode`, `gemini`, `codex`).
-4. Ask: *"How did I sleep last night?"*
+2. `uvx garmin-connect-personal-mcp init`: stores the key privately.
+3. `uvx garmin-connect-personal-mcp sync`: downloads the last week into a local archive. Run it again any time; it picks up where it left off.
+4. `uvx garmin-connect-personal-mcp install-client claude`: adds the server to your assistant (or `cursor`, `vscode`, `gemini`, `codex`).
+5. Ask: *"How did I sleep last night?"*
 
 ## Privacy
 
