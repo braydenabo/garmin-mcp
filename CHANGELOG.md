@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- `garmin_show_chart`: when you ask to see your data, apps that support MCP Apps (Claude Desktop, claude.ai, ChatGPT, VS Code) show an interactive chart: bars for totals, lines for levels, stacked sleep stages, with gaps for days without data. The chart page is self-contained and works offline; other apps get the same data as text. It can be turned off with the `charts` toolset.
 - `install-client`: shows or applies the setup for Claude Desktop, Claude Code, Cursor, VS Code, Gemini CLI and Codex CLI, plus a setup guide for each in `docs/clients/`. The README quickstart now matches what works today.
 - `docs/tools.md`, a tools reference generated from the server, and a contract snapshot test so tool names, schemas and annotations can't change by accident.
 - MCP tool `garmin_sync` (incremental by default, backfill up to 90 days), a background sync when the server starts with data over a day old, and `serve --read-only`, `--no-auto-sync` and `--toolsets` (also settable through `GARMIN_MCP_READ_ONLY`, `GARMIN_MCP_AUTO_SYNC` and `GARMIN_MCP_TOOLSETS`).

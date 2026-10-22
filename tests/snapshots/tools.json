@@ -12,6 +12,7 @@
       "title": "garmin_describe_dataArguments",
       "type": "object"
     },
+    "meta": {},
     "name": "garmin_describe_data",
     "output_schema": {
       "$defs": {
@@ -215,6 +216,7 @@
       "title": "garmin_get_activityArguments",
       "type": "object"
     },
+    "meta": {},
     "name": "garmin_get_activity",
     "output_schema": {
       "$defs": {
@@ -656,6 +658,7 @@
       "title": "garmin_get_dayArguments",
       "type": "object"
     },
+    "meta": {},
     "name": "garmin_get_day",
     "output_schema": {
       "$defs": {
@@ -902,6 +905,7 @@
       "title": "garmin_get_trendArguments",
       "type": "object"
     },
+    "meta": {},
     "name": "garmin_get_trend",
     "output_schema": {
       "$defs": {
@@ -1117,6 +1121,7 @@
       "title": "garmin_list_activitiesArguments",
       "type": "object"
     },
+    "meta": {},
     "name": "garmin_list_activities",
     "output_schema": {
       "$defs": {
@@ -1341,6 +1346,223 @@
     "annotations": {
       "destructive_hint": false,
       "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "description": "Show the user a chart of one metric over time, or of sleep stages (metric='sleep_stages'). Use only when the user asks to see, plot, graph or visualize data. Apps that support it display an interactive chart; the result also has the data, so describe what it shows. Defaults to the last 30 days.",
+    "input_schema": {
+      "properties": {
+        "bucket": {
+          "default": "day",
+          "description": "A bar or point per day, or weekly means",
+          "enum": [
+            "day",
+            "week"
+          ],
+          "title": "Bucket",
+          "type": "string"
+        },
+        "end": {
+          "default": "today",
+          "description": "YYYY-MM-DD, 'today' or 'yesterday'",
+          "title": "End",
+          "type": "string"
+        },
+        "metric": {
+          "description": "sleep_stages, or a metric from garmin_describe_data",
+          "enum": [
+            "sleep_stages",
+            "awake_minutes",
+            "body_battery_charged",
+            "body_battery_drained",
+            "body_battery_high",
+            "body_battery_low",
+            "calories_active_kcal",
+            "calories_total_kcal",
+            "deep_sleep_minutes",
+            "distance_km",
+            "floors_climbed",
+            "hrv_baseline_high_ms",
+            "hrv_baseline_low_ms",
+            "hrv_last_night_ms",
+            "hrv_weekly_avg_ms",
+            "intensity_minutes_moderate",
+            "intensity_minutes_vigorous",
+            "light_sleep_minutes",
+            "max_hr_bpm",
+            "min_hr_bpm",
+            "rem_sleep_minutes",
+            "respiration_avg_brpm",
+            "resting_hr_bpm",
+            "sleep_avg_hr_bpm",
+            "sleep_avg_respiration_brpm",
+            "sleep_hours",
+            "sleep_score",
+            "step_goal",
+            "steps",
+            "stress_avg",
+            "stress_max"
+          ],
+          "title": "Metric",
+          "type": "string"
+        },
+        "start": {
+          "default": "",
+          "description": "YYYY-MM-DD, 'today' or 'yesterday'. Default: 30 days ago",
+          "title": "Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric"
+      ],
+      "title": "garmin_show_chartArguments",
+      "type": "object"
+    },
+    "meta": {
+      "ui": {
+        "resourceUri": "ui://garmin/chart.html"
+      }
+    },
+    "name": "garmin_show_chart",
+    "output_schema": {
+      "$defs": {
+        "Series": {
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "role": {
+              "description": "Colour hint for the chart view",
+              "title": "Role",
+              "type": "string"
+            },
+            "values": {
+              "description": "One per label; null means no data",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "title": "Values",
+              "type": "array"
+            }
+          },
+          "required": [
+            "name",
+            "role",
+            "values"
+          ],
+          "title": "Series",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "average": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mean of the plotted totals over days with data",
+          "title": "Average"
+        },
+        "bucket": {
+          "enum": [
+            "day",
+            "week"
+          ],
+          "title": "Bucket",
+          "type": "string"
+        },
+        "days_with_data": {
+          "title": "Days With Data",
+          "type": "integer"
+        },
+        "end": {
+          "title": "End",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "bar",
+            "line",
+            "stacked"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "labels": {
+          "description": "Dates (or week-start dates), oldest first",
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "series": {
+          "items": {
+            "$ref": "#/$defs/Series"
+          },
+          "title": "Series",
+          "type": "array"
+        },
+        "start": {
+          "title": "Start",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "metric",
+        "unit",
+        "kind",
+        "bucket",
+        "start",
+        "end",
+        "labels",
+        "series",
+        "average",
+        "days_with_data",
+        "notes"
+      ],
+      "title": "ChartData",
+      "type": "object"
+    },
+    "title": "Show a chart"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
       "open_world_hint": true,
       "read_only_hint": false
     },
@@ -1357,6 +1579,7 @@
       "title": "garmin_syncArguments",
       "type": "object"
     },
+    "meta": {},
     "name": "garmin_sync",
     "output_schema": {
       "properties": {

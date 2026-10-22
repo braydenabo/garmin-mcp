@@ -44,7 +44,7 @@ Add these as environment variables in the server's configuration (`env`), or as 
 | --- | --- |
 | `GARMIN_MCP_READ_ONLY=1` (`--read-only`) | Never contact Garmin: hides `garmin_sync` and skips the startup sync. |
 | `GARMIN_MCP_AUTO_SYNC=0` (`--no-auto-sync`) | Don't sync on startup when the data is over a day old. |
-| `GARMIN_MCP_TOOLSETS=daily,activities` (`--toolsets`) | Load fewer tools (`daily`, `activities`, `sync`); helps smaller models. `garmin_describe_data` is always on. |
+| `GARMIN_MCP_TOOLSETS=daily,activities` (`--toolsets`) | Load fewer tools (`daily`, `activities`, `sync`, `charts`); helps smaller models. `garmin_describe_data` is always on. |
 
 All tools are listed in [docs/tools.md](../tools.md).
 

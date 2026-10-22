@@ -11,15 +11,17 @@ import sqlite3
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
+from importlib.resources import files
 from statistics import fmean
 from typing import Annotated, Any, Literal
 
+from mcp.server.apps import Apps
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
-from garmin_connect_personal_mcp import __version__, activities, db, metrics
+from garmin_connect_personal_mcp import __version__, activities, charts, db, metrics
 from garmin_connect_personal_mcp.config import DataPaths
 
 PROG = "garmin-connect-personal-mcp"
@@ -46,7 +48,9 @@ TOOLSETS: dict[str, tuple[str, ...]] = {
     "daily": ("garmin_get_day", "garmin_get_trend"),
     "activities": ("garmin_list_activities", "garmin_get_activity"),
     "sync": ("garmin_sync",),
+    "charts": ("garmin_show_chart",),
 }
+CHART_URI = "ui://garmin/chart.html"
 MAX_TOOL_SYNC_DAYS = 90
 
 NOTES = [
@@ -364,6 +368,70 @@ def sync_now(
     )
 
 
+def show_chart(
+    paths: DataPaths, metric: str, start: date, end: date, bucket: Literal["day", "week"]
+) -> charts.ChartData:
+    if metric not in charts.CHART_METRICS:
+        close = difflib.get_close_matches(metric, charts.CHART_METRICS, n=3)
+        hint = f" Did you mean {', '.join(close)}?" if close else ""
+        raise ToolError(
+            f"Unknown metric {metric!r}.{hint} garmin_describe_data lists every metric."
+        )
+    with open_archive(paths) as conn:
+        if conn is None:
+            raise ToolError(f"No data has been synced yet. The user can run `{PROG} sync`.")
+        try:
+            return charts.chart_data(conn, metric, start, end, bucket)
+        except ValueError as exc:
+            raise ToolError(str(exc)) from None
+
+
+def _chart_apps(paths: DataPaths, today: Callable[[], date]) -> Apps:
+    """garmin_show_chart, bound to the chart view that MCP Apps hosts display."""
+    apps = Apps()
+    html = (
+        files("garmin_connect_personal_mcp").joinpath("ui/chart.html").read_text(encoding="utf-8")
+    )
+    apps.add_html_resource(
+        CHART_URI, html, name="Garmin chart", description="Interactive chart for garmin_show_chart"
+    )
+
+    @apps.tool(
+        resource_uri=CHART_URI,
+        name="garmin_show_chart",
+        title="Show a chart",
+        description=(
+            "Show the user a chart of one metric over time, or of sleep stages "
+            "(metric='sleep_stages'). Use only when the user asks to see, plot, graph or "
+            "visualize data. Apps that support it display an interactive chart; the result also "
+            "has the data, so describe what it shows. Defaults to the last 30 days."
+        ),
+        annotations=READ_ONLY,
+    )
+    def garmin_show_chart(
+        metric: Annotated[
+            str,
+            Field(
+                description="sleep_stages, or a metric from garmin_describe_data",
+                json_schema_extra={"enum": charts.CHART_METRICS},
+            ),
+        ],
+        start: Annotated[
+            str, Field(description="YYYY-MM-DD, 'today' or 'yesterday'. Default: 30 days ago")
+        ] = "",
+        end: Annotated[str, Field(description="YYYY-MM-DD, 'today' or 'yesterday'")] = "today",
+        bucket: Annotated[
+            Literal["day", "week"], Field(description="A bar or point per day, or weekly means")
+        ] = "day",
+    ) -> charts.ChartData:
+        now = today()
+        end_date = parse_date(end, now)
+        start_date = parse_date(start, now) if start else end_date - timedelta(days=29)
+        return show_chart(paths, metric, start_date, end_date, bucket)
+
+    return apps
+
+
 def local_today() -> date:
     return datetime.now().astimezone().date()
 
@@ -445,6 +513,7 @@ def build_server(
         title="Garmin (personal data)",
         instructions=INSTRUCTIONS,
         version=__version__,
+        extensions=[_chart_apps(paths, today)] if "charts" in toolsets else None,
     )
 
     @server.tool(
@@ -569,7 +638,9 @@ def build_server(
     enabled = {name for toolset in toolsets for name in TOOLSETS[toolset]}
     if read_only:
         enabled -= set(TOOLSETS["sync"])
-    for toolset_tools in TOOLSETS.values():
+    for toolset, toolset_tools in TOOLSETS.items():
+        if toolset == "charts":
+            continue  # only registered when enabled, above
         for name in toolset_tools:
             if name not in enabled:
                 server.remove_tool(name)

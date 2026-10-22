@@ -56,8 +56,11 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and a Gar
 - "Is my resting heart rate lower than three months ago?"
 - "How has my weekly running distance built up since July?"
 - "Anything unusual in my HRV lately?"
+- "Show me my sleep stages for the last two weeks."
 
-The assistant uses six tools: `garmin_describe_data`, `garmin_get_day`, `garmin_get_trend`, `garmin_list_activities`, `garmin_get_activity` and `garmin_sync`. See [docs/tools.md](docs/tools.md). Missing data is reported as missing, never as zero.
+Ask to *see* your data ("show me my last 7 days of sleep") and apps that support [MCP Apps](https://modelcontextprotocol.io/) (Claude Desktop, claude.ai, ChatGPT, VS Code) display an interactive chart. Elsewhere you get the same numbers as text.
+
+The assistant uses seven tools: `garmin_describe_data`, `garmin_get_day`, `garmin_get_trend`, `garmin_list_activities`, `garmin_get_activity`, `garmin_show_chart` and `garmin_sync`. See [docs/tools.md](docs/tools.md). Missing data is reported as missing, never as zero.
 
 ## Troubleshooting
 

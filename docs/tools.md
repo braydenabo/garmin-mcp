@@ -59,6 +59,19 @@ Workouts newest first, with headline stats (duration, distance, pace or speed, h
 | `limit` | integer | default `20` | Page size, 1-100 |
 | `cursor` | string | default `""` | next_cursor from the previous page |
 
+## `garmin_show_chart`
+
+Show the user a chart of one metric over time, or of sleep stages (metric='sleep_stages'). Use only when the user asks to see, plot, graph or visualize data. Apps that support it display an interactive chart; the result also has the data, so describe what it shows. Defaults to the last 30 days.
+
+*read-only, local only, shows an interactive chart in apps that support MCP Apps*
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `metric` | one of `sleep_stages`, `awake_minutes`, `body_battery_charged`, `body_battery_drained`, `body_battery_high`, `body_battery_low`, … | required | sleep_stages, or a metric from garmin_describe_data |
+| `start` | string | default `""` | YYYY-MM-DD, 'today' or 'yesterday'. Default: 30 days ago |
+| `end` | string | default `"today"` | YYYY-MM-DD, 'today' or 'yesterday' |
+| `bucket` | one of `day`, `week` | default `"day"` | A bar or point per day, or weekly means |
+
 ## `garmin_sync`
 
 Download new data from Garmin into the archive. Use it when garmin_get_day says not_synced or the latest data is old. By default it resumes from the last sync (a few seconds). days_back re-checks up to 90 recent days.

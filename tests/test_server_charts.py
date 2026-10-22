@@ -1,0 +1,111 @@
+"""garmin_show_chart and its MCP Apps wiring."""
+
+from datetime import date, timedelta
+from typing import Any
+
+import anyio
+from mcp import Client
+
+from garmin_connect_personal_mcp import config, db
+from garmin_connect_personal_mcp.server import CHART_URI, build_server
+
+TODAY = date(2026, 3, 15)
+
+
+def with_client(fn: Any, **kwargs: Any) -> Any:
+    server = build_server(config.data_paths(), today=lambda: TODAY, **kwargs)
+
+    async def main() -> Any:
+        async with Client(server) as client:
+            return await fn(client)
+
+    return anyio.run(main)
+
+
+def seed_sleep() -> None:
+    conn = db.connect(config.data_paths().db)
+    for i in range(7):
+        when = TODAY - timedelta(days=i)
+        db.upsert_daily(
+            conn,
+            "sleep",
+            when,
+            {"calendarDate": when.isoformat(), "sleepTimeSeconds": 27000, "deepSleepSeconds": 5400},
+        )
+    conn.commit()
+    conn.close()
+
+
+def test_chart_tool_points_to_the_chart_view() -> None:
+    async def go(client: Client) -> Any:
+        tools = {t.name: t for t in (await client.list_tools()).tools}
+        resources = (await client.list_resources()).resources
+        page = await client.read_resource(CHART_URI)
+        return tools["garmin_show_chart"], resources, page
+
+    tool, resources, page = with_client(go)
+    assert tool.meta == {"ui": {"resourceUri": CHART_URI}}
+    assert tool.annotations.read_only_hint is True
+    assert [(r.uri, r.mime_type) for r in resources] == [(CHART_URI, "text/html;profile=mcp-app")]
+    assert "ui/notifications/tool-result" in page.contents[0].text
+
+
+def test_chart_returns_data_the_model_can_read() -> None:
+    seed_sleep()
+
+    async def go(client: Client) -> Any:
+        return await client.call_tool(
+            "garmin_show_chart", {"metric": "sleep_stages", "start": "2026-03-09"}
+        )
+
+    result = with_client(go)
+    assert not result.is_error
+    data = result.structured_content
+    assert data["kind"] == "stacked" and data["labels"][-1] == TODAY.isoformat()
+    assert data["series"][0]["values"][-1] == 1.5
+    assert '"Deep"' in result.content[0].text  # text copy for clients without MCP Apps
+
+
+def test_chart_defaults_to_30_days_and_guides_errors() -> None:
+    seed_sleep()
+
+    async def go(client: Client) -> Any:
+        ok = await client.call_tool("garmin_show_chart", {"metric": "sleep_hours"})
+        typo = await client.call_tool("garmin_show_chart", {"metric": "sleep_stage"})
+        huge = await client.call_tool(
+            "garmin_show_chart", {"metric": "steps", "start": "2024-01-01"}
+        )
+        return ok, typo, huge
+
+    ok, typo, huge = with_client(go)
+    assert len(ok.structured_content["labels"]) == 30
+    assert typo.is_error and "sleep_stages" in typo.content[0].text
+    assert huge.is_error and "bucket='week'" in huge.content[0].text
+
+
+def test_chart_without_archive_suggests_sync() -> None:
+    async def go(client: Client) -> Any:
+        return await client.call_tool("garmin_show_chart", {"metric": "steps"})
+
+    result = with_client(go)
+    assert result.is_error and "sync" in result.content[0].text
+
+
+def test_charts_toolset_can_be_turned_off() -> None:
+    async def go(client: Client) -> Any:
+        names = {t.name for t in (await client.list_tools()).tools}
+        resources = (await client.list_resources()).resources
+        return names, resources
+
+    names, resources = with_client(go, toolsets=("daily", "activities", "sync"))
+    assert "garmin_show_chart" not in names and resources == []
+    names, _ = with_client(go, toolsets=("charts",))
+    assert names == {"garmin_describe_data", "garmin_show_chart"}
+
+
+def test_serve_includes_charts_by_default(monkeypatch: Any) -> None:
+    from garmin_connect_personal_mcp import cli
+
+    monkeypatch.delenv("GARMIN_MCP_TOOLSETS", raising=False)
+    args = cli.build_parser().parse_args(["serve"])
+    assert set(args.toolsets.split(",")) == {"daily", "activities", "sync", "charts"}
