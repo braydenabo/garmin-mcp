@@ -3,13 +3,14 @@
 Tools only read the archive, which sync fills. Every tool has a flat input
 schema, units in its output field names, accurate annotations, and a typed
 output (structuredContent plus a text copy for clients that only read text).
-UI chart calls expose a summary; full plot data goes only to the widget metadata.
+ChatGPT chart calls expose a summary; full plot data goes only to the widget metadata.
 Errors are returned as tool results that say what to do next.
 """
 
 import difflib
 import hashlib
 import sqlite3
+import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
@@ -57,13 +58,20 @@ TOOLSETS: dict[str, tuple[str, ...]] = {
     "sync": ("garmin_sync",),
     "charts": ("garmin_show_chart", "garmin_get_chart_data"),
 }
-# UI resource URIs are host cache keys. Content-address them so HTML/CSS fixes
-# become visible after the client refreshes its tool metadata.
 CHART_HTML = (
     files("garmin_connect_personal_mcp").joinpath("ui/chart.html").read_text(encoding="utf-8")
 )
-CHART_URI = f"ui://garmin/chart-{hashlib.sha256(CHART_HTML.encode()).hexdigest()[:16]}.html"
-LEGACY_CHART_URI = "ui://garmin/chart.html"
+# Claude shows no widget for the content-addressed URI, so the standard ui.resourceUri
+# stays stable. ChatGPT caches templates by URI, so its openai/outputTemplate is
+# content-addressed: HTML/CSS fixes appear after refreshing its tool metadata.
+CHART_URI = "ui://garmin/chart.html"
+VERSIONED_CHART_URI = (
+    f"ui://garmin/chart-{hashlib.sha256(CHART_HTML.encode()).hexdigest()[:16]}.html"
+)
+# ChatGPT redraws plot points it can see, so it gets a summary and the widget gets the
+# points through result metadata. Other hosts (Claude) may not pass that metadata to the
+# widget, so they keep the full data in structuredContent.
+SUMMARY_ONLY_CLIENTS = ("openai", "chatgpt")
 MAX_TOOL_SYNC_DAYS = 90
 
 NOTES = [
@@ -402,11 +410,11 @@ def show_chart(
 def _chart_apps(paths: DataPaths, today: Callable[[], date]) -> Apps:
     """garmin_show_chart, bound to the chart view that MCP Apps hosts display."""
     apps = Apps()
-    for uri in (CHART_URI, LEGACY_CHART_URI):
+    for uri in (CHART_URI, VERSIONED_CHART_URI):
         apps.add_resource(
             TextResource(
                 uri=uri,
-                name="Garmin chart" if uri == CHART_URI else "Garmin chart (legacy)",
+                name="Garmin chart" if uri == CHART_URI else "Garmin chart (versioned)",
                 description="Displays the requested Garmin metric as an interactive chart.",
                 mime_type="text/html;profile=mcp-app",
                 text=CHART_HTML,
@@ -421,6 +429,7 @@ def _chart_apps(paths: DataPaths, today: Callable[[], date]) -> Apps:
 
     @apps.tool(
         resource_uri=CHART_URI,
+        meta={"openai/outputTemplate": VERSIONED_CHART_URI},
         name="garmin_show_chart",
         title="Show a chart",
         description=(
@@ -452,7 +461,7 @@ def _chart_apps(paths: DataPaths, today: Callable[[], date]) -> Apps:
         end_date = parse_date(end, now)
         start_date = parse_date(start, now) if start else end_date - timedelta(days=29)
         data = show_chart(paths, metric, start_date, end_date, bucket)
-        if not client_supports_apps(ctx):
+        if not summary_only_chart(ctx):
             return CallToolResult(
                 structured_content=data.model_dump(),
                 content=[TextContent(type="text", text=data.model_dump_json())],
@@ -471,6 +480,21 @@ def _chart_apps(paths: DataPaths, today: Callable[[], date]) -> Apps:
         )
 
     return apps
+
+
+def client_name(ctx: Context[Any, Any]) -> str:
+    params = ctx.session.client_params
+    info = params.client_info if params else None
+    return info.name if info else ""
+
+
+def summary_only_chart(ctx: Context[Any, Any]) -> bool:
+    """Whether to keep plot points out of the model-visible chart result."""
+    if not client_supports_apps(ctx):
+        return False
+    name = client_name(ctx)
+    print(f"garmin_show_chart: client {name or 'unnamed'}", file=sys.stderr)
+    return any(part in name.lower() for part in SUMMARY_ONLY_CLIENTS)
 
 
 def local_today() -> date:

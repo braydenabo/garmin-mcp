@@ -1639,8 +1639,9 @@
       "type": "object"
     },
     "meta": {
+      "openai/outputTemplate": "ui://garmin/chart-51884e15231fd82b.html",
       "ui": {
-        "resourceUri": "ui://garmin/chart-51884e15231fd82b.html"
+        "resourceUri": "ui://garmin/chart.html"
       }
     },
     "name": "garmin_show_chart",
