@@ -1,122 +1,165 @@
 # garmin-connect-personal-mcp
 
-An MCP server that lets any AI assistant answer questions about **your own** Garmin data: sleep, HRV, stress, body battery, training and activities.
+**Ask your AI assistant about your own Garmin data: your sleep, recovery, training and workouts. Your data stays on your computer.**
 
-It syncs Garmin's official [Personal API](https://developer.garmin.com/gc-developer-program/personal/personal-api) into a SQLite archive on your machine and serves it to Claude, ChatGPT, Gemini, Cursor, VS Code, Codex and any other MCP client.
+Your Garmin watch records years of useful signals: sleep stages, resting heart rate, HRV, stress, Body Battery, every run and ride. The Garmin Connect app shows them one chart at a time, which makes it hard to answer simple questions like "why do I feel so flat this week?" This project lets Claude, ChatGPT, Gemini or any other assistant that supports MCP read them all together, so you can just ask:
 
-> **Unofficial.** This project is not affiliated with, endorsed by, or supported by Garmin. Garmin and Garmin Connect are trademarks of Garmin Ltd. or its subsidiaries.
+> **You:** I've felt flat this week. Is anything off?
 >
-> **Not medical advice.** The data comes from consumer wearables. This server reports numbers and trends; it does not diagnose anything.
+> **Assistant:** Your resting heart rate has been 58–61 bpm since Tuesday, against your usual 51–53, and your overnight HRV dropped from about 60 ms to 46 ms. Your sleep score fell too. That pattern often shows up when you're run down or fighting something off, so an easy few days could help. If it doesn't settle, it's worth checking with a doctor.
 
-## Status
+*(An example with made-up numbers.)*
 
-**Alpha.** Syncing, the local archive and the stdio MCP server work and are tested on macOS, Linux and Windows. ChatGPT can connect through OpenAI Secure MCP Tunnel; see [the ChatGPT guide](docs/clients/chatgpt.md). An optional Streamable HTTP mode is also available for self-hosted deployments.
+> **Unofficial.** Not affiliated with, endorsed by or supported by Garmin. Garmin and Garmin Connect are trademarks of Garmin Ltd. or its subsidiaries.
+>
+> **Not medical advice.** The data comes from a consumer wearable. The tools report numbers and trends; they don't diagnose anything.
 
-## Quickstart
+## Why it's built this way
 
-You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and a Garmin Personal API key.
+- **Private by design.** You run it on your own computer with your own Garmin key. There's no hosted service, no account to create, and nothing passes through this project. Your name, photos and GPS routes are never handed to the assistant.
+- **Your history, kept.** How far back Garmin's API reaches isn't guaranteed. A daily sync builds a local archive of everything it has fetched, so you can still ask about this year next year.
+- **Honest about gaps.** A night you didn't wear the watch shows up as missing, never as zero, so the assistant doesn't draw conclusions from data that isn't there.
+- **Works with the assistant you already use.** It uses the open [Model Context Protocol](https://modelcontextprotocol.io/), with one-command setup for the popular apps.
+- **Built on Garmin's official API.** It uses Garmin's own Personal API and Python client: no screen scraping, and it never asks for your password.
 
-1. **Install:**
+## How it works
+
+```mermaid
+flowchart LR
+    G[Garmin Connect] -- "sync (daily)" --> A[(Archive on your computer)]
+    A --> S[MCP server]
+    S <--> C[Your AI app]
+```
+
+1. **Sync** downloads your data from Garmin's Personal API into a SQLite archive in your user folder, once a day if you like.
+2. **The MCP server** gives your AI app a set of read-only tools over that archive.
+3. **Your AI app** calls those tools when you ask a question, and answers from what they return.
+
+Only syncing talks to Garmin. Answering a question happens on your computer, apart from the results your AI app sends to its own provider, as with anything you ask it.
+
+## Get started
+
+You need a Garmin device that syncs to Garmin Connect, and [uv](https://docs.astral.sh/uv/getting-started/installation/) to install it (uv takes care of Python for you). Setup takes about five minutes.
+
+1. **Install it:**
 
    ```bash
    uv tool install garmin-connect-personal-mcp
    ```
 
-   To update later: `uv tool upgrade garmin-connect-personal-mcp`.
-
-2. **Save your key.** Create one in [Garmin Connect](https://connect.garmin.com/app/settings/personalApiToken), then paste it at the hidden prompt:
+2. **Save your Garmin key.** Create a Personal API key in [Garmin Connect's settings](https://connect.garmin.com/app/settings/personalApiToken), then paste it at the hidden prompt:
 
    ```bash
    garmin-connect-personal-mcp init
    ```
 
-3. **Download your data** (the last 90 days; later runs pick up where they left off):
+3. **Download your data.** This fetches the last 90 days; later runs pick up where they left off:
 
    ```bash
    garmin-connect-personal-mcp sync --days-back 90
    ```
 
-4. **Keep it up to date** (optional, recommended). Garmin's API won't fill in old days on request, so a daily sync keeps your history complete:
+4. **Keep it up to date** (recommended). This adds a daily sync to your computer's scheduler, which is how your history builds up:
 
    ```bash
    garmin-connect-personal-mcp schedule install
    ```
 
-5. **Connect your assistant.** Run it without `--write` first to see what it will change:
+5. **Connect your AI app.** Leave out `--write` to see the change first:
 
-   ```bash
-   garmin-connect-personal-mcp install-client claude-desktop --write
-   ```
+   | App | Command |
+   | --- | --- |
+   | Claude Desktop | `garmin-connect-personal-mcp install-client claude-desktop --write` |
+   | Claude Code | `garmin-connect-personal-mcp install-client claude-code --write` |
+   | Cursor | `garmin-connect-personal-mcp install-client cursor --write` |
+   | VS Code | `garmin-connect-personal-mcp install-client vscode` |
+   | Gemini CLI | `garmin-connect-personal-mcp install-client gemini --write` |
+   | Codex CLI | `garmin-connect-personal-mcp install-client codex --write` |
+   | ChatGPT | `garmin-connect-personal-mcp setup-chatgpt` |
 
-   Other clients: `claude-code`, `cursor`, `vscode`, `gemini`, `codex`. See [docs/clients](docs/clients/README.md) for each one.
+   Each app has a [setup guide](docs/clients/README.md). ChatGPT connects through OpenAI's private Secure MCP Tunnel, and its [guide](docs/clients/chatgpt.md) walks you through the account setup.
 
-   For ChatGPT, run the guided setup:
+6. **Restart the app and ask:** *"How did I sleep last night?"*
 
-   ```bash
-   garmin-connect-personal-mcp setup-chatgpt
-   ```
+To update later, run `uv tool upgrade garmin-connect-personal-mcp`.
 
-   It checks prerequisites and configures a private Secure MCP Tunnel. OpenAI account/workspace setup is required; see [the ChatGPT guide](docs/clients/chatgpt.md).
+### Want to try it first?
 
-   On macOS, optional [background startup](docs/clients/chatgpt.md#optional-background-startup-macos) keeps the tunnel running without an open terminal. Nothing is enabled automatically.
-
-6. **Ask:** *"How did I sleep last night?"*
-
-### Try it without a Garmin account
-
-`demo` writes about four months of made-up data, shaped like Garmin's, into a new folder. Point the server at that folder and every tool works on it:
+You don't need a Garmin account to look around. The `demo` command writes four months of made-up data into a new folder, with a training block, a few sick days and some nights the watch stayed on the charger, so there's plenty to ask about:
 
 ```bash
 garmin-connect-personal-mcp demo ~/garmin-demo
-GARMIN_MCP_DATA_DIR=~/garmin-demo garmin-connect-personal-mcp serve --read-only
+GARMIN_MCP_DATA_DIR=~/garmin-demo garmin-connect-personal-mcp install-client claude-desktop --write
 ```
 
-It includes weekend sleep-ins, a training block, a few sick days and some days without the watch, so there's something to ask about. It never touches your real archive.
+The demo never touches a real archive, and sync is switched off for it. Run `install-client` again without `GARMIN_MCP_DATA_DIR` to switch back.
 
 ## What you can ask
 
-- "Summarize my training and recovery this week."
+**Daily health**
+- "How did I sleep last night? Was that normal for me?"
 - "Is my resting heart rate lower than three months ago?"
-- "Was last night's sleep normal for me?"
-- "Did I sleep more in October than in September?"
-- "On days I ran, was my sleep score higher?" (answered with read-only SQL)
-- "How has my weekly running distance built up since July?"
 - "Anything unusual in my HRV lately?"
-- "Show me my sleep stages for the last two weeks."
+
+**Training and workouts**
+- "Summarize my training and recovery this week."
+- "How has my weekly running distance built up since July?"
 - "Did my heart rate drift in the second half of yesterday's run?"
 
-Ask to *see* your data ("show me my last 7 days of sleep") and apps that support [MCP Apps](https://modelcontextprotocol.io/) (Claude Desktop, claude.ai, ChatGPT, VS Code) display an interactive chart. Elsewhere you get the same numbers as text.
+**Comparisons and patterns**
+- "Did I sleep more in October than in September?"
+- "Do I sleep better on days I run?"
+- "Show me my sleep for the last two weeks." Apps that support [MCP Apps](https://modelcontextprotocol.io/) (Claude Desktop, claude.ai, ChatGPT, VS Code) show an interactive chart; other apps describe the same numbers in words.
 
-The assistant uses eleven tools: `garmin_describe_data`, `garmin_get_day`, `garmin_get_trend`, `garmin_get_baseline`, `garmin_compare_periods`, `garmin_list_activities`, `garmin_get_activity`, `garmin_get_activity_stream`, `garmin_query`, `garmin_show_chart` and `garmin_sync`. See [docs/tools.md](docs/tools.md) for each tool and [docs/data.md](docs/data.md) for what's stored, every metric and its unit, and what's never shared. Missing data is reported as missing, never as zero.
+## The tools
 
-## Troubleshooting
+Your AI app picks these on its own, so you never need to name them. They're here if you're curious.
 
-Run:
+| Tool | What it answers |
+| --- | --- |
+| `garmin_describe_data` | What's in your archive: dates covered, metrics and units |
+| `garmin_get_day` | Sleep, HRV and daily totals for one day, plus its workouts |
+| `garmin_get_trend` | One metric over time, per day or per week |
+| `garmin_get_baseline` | How a day compares with your own usual range |
+| `garmin_compare_periods` | One metric across two date ranges, side by side |
+| `garmin_list_activities` | Your workouts, newest first, filtered by date and sport |
+| `garmin_get_activity` | One workout in detail: heart-rate zones, power, splits |
+| `garmin_get_activity_stream` | One workout over time: heart rate, pace, cadence, power, altitude |
+| `garmin_query` | Read-only SQL for anything the others can't answer |
+| `garmin_show_chart` | An interactive chart of a metric |
+| `garmin_sync` | Fetch the latest data from Garmin |
 
-```bash
-garmin-connect-personal-mcp doctor
-```
+[docs/tools.md](docs/tools.md) has every argument, and [docs/data.md](docs/data.md) lists every metric with its unit.
 
-It checks your API key, Garmin access, the local archive, recent sync errors and the daily schedule, and says how to fix anything wrong. The report contains no API key, health data or home folder path, so you can paste it into an issue as is. Add `--offline` to skip contacting Garmin.
+## Privacy and security
 
-[docs/troubleshooting.md](docs/troubleshooting.md) covers problems by symptom, and [docs/faq.md](docs/faq.md) answers common questions: supported devices, how far back your history goes, rate limits, and who sees your data.
+- **Everything stays on your computer:** your archive, in your user data folder, and your Garmin key.
+- **The only network requests go to Garmin**, to sync. `--read-only` takes syncing away from the AI app altogether.
+- **Your AI app's provider sees what the tools return** when you ask a question, as with anything you type. The tools never include your name, profile photos or GPS coordinates, even though Garmin's records contain them, and the SQL tool reads a cleaned copy without them.
+- **Nothing is written back to Garmin.** Its Personal API is read-only.
 
-## Privacy
+If you find a security problem, please report it privately, as described in [SECURITY.md](SECURITY.md).
 
-- **You run it yourself, with your own key.** There is no hosted service, and your data never passes through this project.
-- Your archive and API key stay on your machine, outside this repository.
-- The only network calls go to Garmin's own API, to sync. `serve --read-only` turns even that off.
-- Tools never return your name, profile photos or GPS coordinates, even though Garmin's records contain them, so a cloud assistant isn't told where you live. The SQL tool, `garmin_query`, reads a cleaned copy that doesn't contain them either. Turn it off by leaving `query` out of `--toolsets`.
+## Stability
 
-## Development
+From 1.0, updates only add things. Tool names, their arguments and output fields, metric names and units, and the query tables stay put until 2.0, so your prompts, scripts and saved setups keep working. A test checks the tools, metrics and query tables on every change; see [Stability in CONTRIBUTING.md](CONTRIBUTING.md#stability). The [changelog](CHANGELOG.md) lists what's new in each release.
+
+## Getting help
+
+- **Something's wrong?** Run `garmin-connect-personal-mcp doctor`. It checks your key, Garmin access, the archive and the daily sync, and tells you how to fix anything it finds. Its report leaves out anything personal, so it's safe to paste into an issue.
+- **[Troubleshooting](docs/troubleshooting.md)** goes through common problems by symptom.
+- **[FAQ](docs/faq.md)**: which devices work, how far back your history goes, rate limits, units, uninstalling.
+- **[Report a bug or suggest a feature](https://github.com/braydenabo/garmin-mcp/issues/new/choose).**
+
+## Contributing
+
+Bug reports, ideas and pull requests are all welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, tests and pull requests, and [AGENTS.md](AGENTS.md) has the rules for AI coding agents. One rule above all: this is health data in a public repository, so tests use made-up data only, and real keys or health data never go in issues or commits.
 
 ```bash
 uv sync
 uv run pre-commit install
 uv run pytest
 ```
-
-[AGENTS.md](AGENTS.md) has the commands and repo rules, for people and AI coding agents alike. To report a security problem, see [SECURITY.md](SECURITY.md).
 
 ## License
 
