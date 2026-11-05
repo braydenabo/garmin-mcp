@@ -19,5 +19,5 @@ body:
     attributes:
       label: Checks
       options:
-        - label: I searched existing issues and discussions.
+        - label: I searched existing issues.
           required: true
