@@ -70,3 +70,40 @@ jobs:
       - run: uv run pytest
       - name: CLI smoke test
         run: uv run garmin-connect-personal-mcp --version
+
+  schedule:
+    name: Scheduler (${{ matrix.backend }})
+    # Installs, runs and removes the daily sync with each OS's real scheduler.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, backend: systemd }
+          - { os: ubuntu-latest, backend: cron }
+          - { os: windows-latest, backend: Task Scheduler }
+          - { os: macos-latest, backend: launchd }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Start a systemd user session
+        if: matrix.backend == 'systemd'
+        run: |
+          sudo loginctl enable-linger "$USER"
+          echo "XDG_RUNTIME_DIR=/run/user/$(id -u)" >> "$GITHUB_ENV"
+          for i in $(seq 30); do
+            [ -S "/run/user/$(id -u)/bus" ] && break
+            sleep 1
+          done
+      - name: Make sure there's no systemd user session (cron fallback)
+        if: matrix.backend == 'cron'
+        run: |
+          which crontab || { sudo apt-get update && sudo apt-get install -y cron; }
+          sudo loginctl disable-linger "$USER" || true
+          echo "XDG_RUNTIME_DIR=" >> "$GITHUB_ENV"
+          echo "DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent" >> "$GITHUB_ENV"
+      - name: Install, run and remove the daily sync
+        run: uv run python scripts/schedule_smoke.py "${{ matrix.backend }}"
