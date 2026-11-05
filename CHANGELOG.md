@@ -4,17 +4,9 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
-### Fixed
+## [0.2.0] - 2026-11-05
 
-- Charts render in Claude again. Claude shows no widget when a tool's `ui.resourceUri` is the content-versioned chart address, so that key is back to `ui://garmin/chart.html`. ChatGPT gets the versioned address through `openai/outputTemplate`. Only ChatGPT gets the summary-only chart result with plot points in widget metadata; Claude and other MCP Apps hosts get the full data in `structuredContent`, which their widgets read directly.
-- Charts can now recover when a host delivers the public summary without the hidden plot metadata. The existing widget loads its points through the read-only, app-only `garmin_get_chart_data` tool, after initialization and without mounting another widget. Repeated notifications are deduplicated, stale replies are ignored, and failed loads show an actionable message.
-- UI-capable chart calls now send plot arrays through component-only result metadata rather than model-visible JSON, reducing the data available for redundant assistant-generated charts. The model receives average/coverage summaries and a rendered-chart acknowledgement. Non-UI clients keep the original full structured/text fallback. The output schema deliberately makes `labels` and `series` optional; tool names and inputs are unchanged.
-- Background status checks no longer fail by trying to reserve the running tunnel's health-listener port. Live-agent checks use a temporary loopback port without changing or restarting the daemon. Local configuration failures no longer suggest replacing the API key, and status hints show the complete CLI command.
-- Tunnel runners now reject duplicate instances for the same profile and archive using a crash-released OS lock. Background child processes are stopped with their runner rather than left orphaned.
-- Chart guidance requests one chart for general sleep prompts and discourages redrawing the same data with other plotting tools. Chart resources describe their rendered UI to ChatGPT, and height reporting also uses its intrinsic-height bridge when available.
-- Chart HTML is also served at a content-versioned resource address so ChatGPT can fetch layout fixes after refreshing its tool metadata. Crowded month-end date labels no longer overlap.
-- ChatGPT setup checks authenticated tunnel metadata access before saving a runtime key or starting the client. It identifies environment-key overrides and provides `--replace-key` to bypass a rejected environment or saved key; the local configuration check alone no longer implies successful authentication.
-- Charts no longer leave a blank scroll area beneath longer date ranges. The screen-reader table is contained in a clipped wrapper, and chart height is reported after the host finishes initializing, including when results shrink.
+First release. Everything below is new.
 
 ### Added
 
@@ -24,6 +16,8 @@ All notable changes to this project are documented here. The format is based on 
 - ChatGPT setup automatically reuses existing tunnel profiles and can remember a validated runtime key in the native OS keychain with consent. The same setup command restarts the tunnel without repeated account prompts. `--no-keychain` bypasses credential storage; `--forget-key` removes a saved key without deleting the profile or archive.
 - ChatGPT setup now offers to download and checksum-verify the official tunnel client for macOS, Linux or Windows, installs it privately without PATH changes, and opens the account and ChatGPT setup pages in your browser. `--no-browser` supports headless setups.
 - Optional Streamable HTTP transport at `/mcp` for MCP clients and Secure MCP Tunnel. It binds to loopback by default and requires `GARMIN_MCP_HTTP_BEARER_TOKEN` before accepting non-loopback binds. Authentication and bind validation are covered by offline tests; invalid settings are rejected before any startup sync.
+- Chart data reaches the widget without being repeated to the model: ChatGPT gets a summary while the plot points go to the widget, and the app-only, read-only `garmin_get_chart_data` tool lets the widget load them if a host drops them. Claude and other MCP Apps hosts get the full data directly.
+- Tunnel runners allow one instance per profile and archive, and stop their child processes when they exit.
 - `garmin_show_chart`: when you ask to see your data, apps that support MCP Apps (Claude Desktop, claude.ai, ChatGPT, VS Code) show an interactive chart: bars for totals, lines for levels, stacked sleep stages, with gaps for days without data. The chart page is self-contained and works offline; other apps get the same data as text. It can be turned off with the `charts` toolset.
 - `install-client`: shows or applies the setup for Claude Desktop, Claude Code, Cursor, VS Code, Gemini CLI and Codex CLI, plus a setup guide for each in `docs/clients/`. The README quickstart now matches what works today.
 - `docs/tools.md`, a tools reference generated from the server, and a contract snapshot test so tool names, schemas and annotations can't change by accident.
@@ -43,3 +37,6 @@ All notable changes to this project are documented here. The format is based on 
 - `init` command: saves your Garmin Personal API key with owner-only permissions, in the same place Garmin's own client looks, and creates the local data folder (override with `GARMIN_MCP_DATA_DIR`).
 - Project skeleton: package, `--version` CLI, CI on Linux, macOS and Windows.
 - Guards against committing secrets and health data.
+
+[Unreleased]: https://github.com/braydenabo/garmin-mcp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/braydenabo/garmin-mcp/releases/tag/v0.2.0

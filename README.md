@@ -19,8 +19,10 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and a Gar
 1. **Install:**
 
    ```bash
-   uv tool install git+https://github.com/braydenabo/garmin-mcp
+   uv tool install garmin-connect-personal-mcp
    ```
+
+   To update later: `uv tool upgrade garmin-connect-personal-mcp`.
 
 2. **Save your key.** Create one in [Garmin Connect](https://connect.garmin.com/app/settings/personalApiToken), then paste it at the hidden prompt:
 

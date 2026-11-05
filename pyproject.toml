@@ -9,7 +9,7 @@ authors = [{ name = "Brayden Abo" }]
 requires-python = ">=3.12"
 keywords = ["mcp", "model-context-protocol", "garmin", "garmin-connect", "fitness", "health", "llm"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: End Users/Desktop",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
