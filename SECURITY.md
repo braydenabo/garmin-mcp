@@ -14,7 +14,7 @@ Nobody from this project will ever ask for your Garmin API key, Garmin password,
 
 ## Supported versions
 
-Only the latest release gets security fixes until 1.0.
+Security fixes go into the latest release of the current major version. Upgrade with `uv tool upgrade garmin-connect-personal-mcp`.
 
 ## Scope
 
