@@ -1,0 +1,609 @@
+{
+  "metrics": {
+    "awake_minutes": "minutes",
+    "body_battery_charged": "points",
+    "body_battery_drained": "points",
+    "body_battery_high": "0-100",
+    "body_battery_low": "0-100",
+    "calories_active_kcal": "kcal",
+    "calories_total_kcal": "kcal",
+    "deep_sleep_minutes": "minutes",
+    "distance_km": "km",
+    "floors_climbed": "floors",
+    "hrv_baseline_high_ms": "ms",
+    "hrv_baseline_low_ms": "ms",
+    "hrv_last_night_ms": "ms",
+    "hrv_status": "label",
+    "hrv_weekly_avg_ms": "ms",
+    "intensity_minutes_moderate": "minutes",
+    "intensity_minutes_vigorous": "minutes",
+    "light_sleep_minutes": "minutes",
+    "max_hr_bpm": "bpm",
+    "min_hr_bpm": "bpm",
+    "rem_sleep_minutes": "minutes",
+    "respiration_avg_brpm": "breaths/min",
+    "resting_hr_bpm": "bpm",
+    "sleep_avg_hr_bpm": "bpm",
+    "sleep_avg_respiration_brpm": "breaths/min",
+    "sleep_end_local": "local time",
+    "sleep_hours": "hours",
+    "sleep_score": "0-100",
+    "sleep_start_local": "local time",
+    "step_goal": "steps",
+    "steps": "steps",
+    "stress_avg": "0-100",
+    "stress_max": "0-100"
+  },
+  "query_columns": {
+    "activities": [
+      "activity_id",
+      "date",
+      "start_local",
+      "activity_type",
+      "name",
+      "duration_minutes",
+      "distance_km",
+      "avg_pace_min_per_km",
+      "avg_speed_kmh",
+      "avg_hr_bpm",
+      "max_hr_bpm",
+      "calories_kcal",
+      "elevation_gain_m",
+      "training_load",
+      "aerobic_training_effect"
+    ],
+    "daily": [
+      "date",
+      "sleep_hours",
+      "deep_sleep_minutes",
+      "light_sleep_minutes",
+      "rem_sleep_minutes",
+      "awake_minutes",
+      "sleep_score",
+      "sleep_avg_hr_bpm",
+      "sleep_avg_respiration_brpm",
+      "sleep_start_local",
+      "sleep_end_local",
+      "hrv_last_night_ms",
+      "hrv_weekly_avg_ms",
+      "hrv_baseline_low_ms",
+      "hrv_baseline_high_ms",
+      "hrv_status",
+      "resting_hr_bpm",
+      "min_hr_bpm",
+      "max_hr_bpm",
+      "steps",
+      "step_goal",
+      "distance_km",
+      "floors_climbed",
+      "stress_avg",
+      "stress_max",
+      "body_battery_high",
+      "body_battery_low",
+      "body_battery_charged",
+      "body_battery_drained",
+      "calories_total_kcal",
+      "calories_active_kcal",
+      "intensity_minutes_moderate",
+      "intensity_minutes_vigorous",
+      "respiration_avg_brpm"
+    ]
+  },
+  "resources": [
+    "garmin://schema"
+  ],
+  "tools": {
+    "garmin_compare_periods": {
+      "arguments": {
+        "compare_end": {
+          "required": false,
+          "type": "string"
+        },
+        "compare_start": {
+          "required": false,
+          "type": "string"
+        },
+        "end": {
+          "required": false,
+          "type": "string"
+        },
+        "metric": {
+          "enum": [
+            "awake_minutes",
+            "body_battery_charged",
+            "body_battery_drained",
+            "body_battery_high",
+            "body_battery_low",
+            "calories_active_kcal",
+            "calories_total_kcal",
+            "deep_sleep_minutes",
+            "distance_km",
+            "floors_climbed",
+            "hrv_baseline_high_ms",
+            "hrv_baseline_low_ms",
+            "hrv_last_night_ms",
+            "hrv_weekly_avg_ms",
+            "intensity_minutes_moderate",
+            "intensity_minutes_vigorous",
+            "light_sleep_minutes",
+            "max_hr_bpm",
+            "min_hr_bpm",
+            "rem_sleep_minutes",
+            "respiration_avg_brpm",
+            "resting_hr_bpm",
+            "sleep_avg_hr_bpm",
+            "sleep_avg_respiration_brpm",
+            "sleep_hours",
+            "sleep_score",
+            "step_goal",
+            "steps",
+            "stress_avg",
+            "stress_max"
+          ],
+          "required": true,
+          "type": "string"
+        },
+        "start": {
+          "required": false,
+          "type": "string"
+        }
+      },
+      "output": {
+        "compare_period": "ref:PeriodStats",
+        "compare_period.days": "integer",
+        "compare_period.days_with_data": "integer",
+        "compare_period.end": "string",
+        "compare_period.max": "null|number",
+        "compare_period.mean": "null|number",
+        "compare_period.median": "null|number",
+        "compare_period.min": "null|number",
+        "compare_period.start": "string",
+        "compare_period.std_dev": "null|number",
+        "description": "string",
+        "difference": "null|number",
+        "difference_pct": "null|number",
+        "metric": "string",
+        "notes": "array",
+        "period": "ref:PeriodStats",
+        "period.days": "integer",
+        "period.days_with_data": "integer",
+        "period.end": "string",
+        "period.max": "null|number",
+        "period.mean": "null|number",
+        "period.median": "null|number",
+        "period.min": "null|number",
+        "period.start": "string",
+        "period.std_dev": "null|number",
+        "unit": "string"
+      }
+    },
+    "garmin_describe_data": {
+      "arguments": {},
+      "output": {
+        "activities_count": "integer",
+        "activities_first_date": "null|string",
+        "activities_last_date": "null|string",
+        "activity_types": "object",
+        "archive_exists": "boolean",
+        "datasets": "array",
+        "datasets[].dataset": "string",
+        "datasets[].days_with_data": "integer",
+        "datasets[].first_date": "null|string",
+        "datasets[].last_date": "null|string",
+        "datasets[].last_synced_date": "null|string",
+        "last_sync_utc": "null|string",
+        "metrics": "array",
+        "metrics[].dataset": "string",
+        "metrics[].description": "string",
+        "metrics[].name": "string",
+        "metrics[].numeric": "boolean",
+        "metrics[].unit": "string",
+        "notes": "array"
+      }
+    },
+    "garmin_get_activity": {
+      "arguments": {
+        "activity_id": {
+          "required": true,
+          "type": "integer"
+        }
+      },
+      "output": {
+        "activity_id": "integer",
+        "activity_type": "null|string",
+        "aerobic_training_effect": "null|number",
+        "anaerobic_training_effect": "null|number",
+        "avg_hr_bpm": "null|number",
+        "avg_pace_min_per_km": "null|number",
+        "avg_power_w": "null|number",
+        "avg_run_cadence_spm": "null|number",
+        "avg_speed_kmh": "null|number",
+        "calories_kcal": "null|number",
+        "distance_km": "null|number",
+        "duration_minutes": "null|number",
+        "elapsed_minutes": "null|number",
+        "elevation_gain_m": "null|number",
+        "elevation_loss_m": "null|number",
+        "fit_file_saved": "boolean",
+        "hr_zone_minutes": "array",
+        "lap_count": "integer|null",
+        "location_name": "null|string",
+        "max_hr_bpm": "null|number",
+        "max_power_w": "null|number",
+        "max_speed_kmh": "null|number",
+        "moving_minutes": "null|number",
+        "name": "null|string",
+        "normalized_power_w": "null|number",
+        "splits": "array",
+        "splits[].avg_speed_kmh": "null|number",
+        "splits[].distance_km": "null|number",
+        "splits[].duration_minutes": "null|number",
+        "splits[].split_type": "null|string",
+        "start_local": "null|string",
+        "steps": "integer|null",
+        "training_effect_label": "null|string",
+        "training_load": "null|number"
+      }
+    },
+    "garmin_get_activity_stream": {
+      "arguments": {
+        "activity_id": {
+          "required": true,
+          "type": "integer"
+        },
+        "end_minute": {
+          "required": false,
+          "type": "number"
+        },
+        "interval_seconds": {
+          "required": false,
+          "type": "integer"
+        },
+        "start_minute": {
+          "required": false,
+          "type": "number"
+        }
+      },
+      "output": {
+        "activity_id": "integer",
+        "activity_type": "null|string",
+        "altitude_m": "array|null",
+        "cadence_rpm": "array|null",
+        "cadence_spm": "array|null",
+        "distance_km": "array|null",
+        "elapsed_minutes": "array",
+        "end_minute": "number",
+        "heart_rate_bpm": "array|null",
+        "interval_seconds": "integer",
+        "notes": "array",
+        "pace_min_per_km": "array|null",
+        "point_count": "integer",
+        "power_w": "array|null",
+        "speed_kmh": "array|null",
+        "start_minute": "number",
+        "temperature_c": "array|null",
+        "total_minutes": "number"
+      }
+    },
+    "garmin_get_baseline": {
+      "arguments": {
+        "date": {
+          "required": false,
+          "type": "string"
+        },
+        "days": {
+          "required": false,
+          "type": "integer"
+        },
+        "metric": {
+          "enum": [
+            "awake_minutes",
+            "body_battery_charged",
+            "body_battery_drained",
+            "body_battery_high",
+            "body_battery_low",
+            "calories_active_kcal",
+            "calories_total_kcal",
+            "deep_sleep_minutes",
+            "distance_km",
+            "floors_climbed",
+            "hrv_baseline_high_ms",
+            "hrv_baseline_low_ms",
+            "hrv_last_night_ms",
+            "hrv_weekly_avg_ms",
+            "intensity_minutes_moderate",
+            "intensity_minutes_vigorous",
+            "light_sleep_minutes",
+            "max_hr_bpm",
+            "min_hr_bpm",
+            "rem_sleep_minutes",
+            "respiration_avg_brpm",
+            "resting_hr_bpm",
+            "sleep_avg_hr_bpm",
+            "sleep_avg_respiration_brpm",
+            "sleep_hours",
+            "sleep_score",
+            "step_goal",
+            "steps",
+            "stress_avg",
+            "stress_max"
+          ],
+          "required": true,
+          "type": "string"
+        }
+      },
+      "output": {
+        "baseline": "ref:BaselineStats",
+        "baseline.days_with_data": "integer",
+        "baseline.max": "null|number",
+        "baseline.mean": "null|number",
+        "baseline.median": "null|number",
+        "baseline.min": "null|number",
+        "baseline.std_dev": "null|number",
+        "baseline.usual_high": "null|number",
+        "baseline.usual_low": "null|number",
+        "baseline_end": "string",
+        "baseline_start": "string",
+        "date": "string",
+        "description": "string",
+        "difference": "null|number",
+        "difference_pct": "null|number",
+        "metric": "string",
+        "notes": "array",
+        "percentile": "null|number",
+        "position": "null|string",
+        "unit": "string",
+        "value": "null|number",
+        "z_score": "null|number"
+      }
+    },
+    "garmin_get_day": {
+      "arguments": {
+        "date": {
+          "required": false,
+          "type": "string"
+        }
+      },
+      "output": {
+        "activities": "array",
+        "activities[].activity_id": "integer",
+        "activities[].activity_type": "null|string",
+        "activities[].start_time_utc": "null|string",
+        "daily_summary": "null|object",
+        "date": "string",
+        "hrv": "null|object",
+        "notes": "array",
+        "sleep": "null|object",
+        "status": "object"
+      }
+    },
+    "garmin_get_trend": {
+      "arguments": {
+        "bucket": {
+          "enum": [
+            "day",
+            "week"
+          ],
+          "required": false,
+          "type": "string"
+        },
+        "end": {
+          "required": false,
+          "type": "string"
+        },
+        "metric": {
+          "enum": [
+            "awake_minutes",
+            "body_battery_charged",
+            "body_battery_drained",
+            "body_battery_high",
+            "body_battery_low",
+            "calories_active_kcal",
+            "calories_total_kcal",
+            "deep_sleep_minutes",
+            "distance_km",
+            "floors_climbed",
+            "hrv_baseline_high_ms",
+            "hrv_baseline_low_ms",
+            "hrv_last_night_ms",
+            "hrv_weekly_avg_ms",
+            "intensity_minutes_moderate",
+            "intensity_minutes_vigorous",
+            "light_sleep_minutes",
+            "max_hr_bpm",
+            "min_hr_bpm",
+            "rem_sleep_minutes",
+            "respiration_avg_brpm",
+            "resting_hr_bpm",
+            "sleep_avg_hr_bpm",
+            "sleep_avg_respiration_brpm",
+            "sleep_hours",
+            "sleep_score",
+            "step_goal",
+            "steps",
+            "stress_avg",
+            "stress_max"
+          ],
+          "required": true,
+          "type": "string"
+        },
+        "start": {
+          "required": false,
+          "type": "string"
+        }
+      },
+      "output": {
+        "bucket": "string",
+        "days_without_data": "integer",
+        "description": "string",
+        "end": "string",
+        "metric": "string",
+        "notes": "array",
+        "points": "array",
+        "points[].days_with_data": "integer",
+        "points[].period_start": "string",
+        "points[].value": "number",
+        "start": "string",
+        "stats": "ref:TrendStats",
+        "stats.days_with_data": "integer",
+        "stats.first": "null|number",
+        "stats.last": "null|number",
+        "stats.max": "null|number",
+        "stats.mean": "null|number",
+        "stats.min": "null|number",
+        "unit": "string"
+      }
+    },
+    "garmin_list_activities": {
+      "arguments": {
+        "activity_type": {
+          "required": false,
+          "type": "string"
+        },
+        "cursor": {
+          "required": false,
+          "type": "string"
+        },
+        "end": {
+          "required": false,
+          "type": "string"
+        },
+        "limit": {
+          "required": false,
+          "type": "integer"
+        },
+        "start": {
+          "required": false,
+          "type": "string"
+        }
+      },
+      "output": {
+        "activities": "array",
+        "activities[].activity_id": "integer",
+        "activities[].activity_type": "null|string",
+        "activities[].aerobic_training_effect": "null|number",
+        "activities[].avg_hr_bpm": "null|number",
+        "activities[].avg_pace_min_per_km": "null|number",
+        "activities[].avg_speed_kmh": "null|number",
+        "activities[].calories_kcal": "null|number",
+        "activities[].distance_km": "null|number",
+        "activities[].duration_minutes": "null|number",
+        "activities[].elevation_gain_m": "null|number",
+        "activities[].max_hr_bpm": "null|number",
+        "activities[].name": "null|string",
+        "activities[].start_local": "null|string",
+        "activities[].training_load": "null|number",
+        "next_cursor": "null|string",
+        "notes": "array",
+        "total": "integer"
+      }
+    },
+    "garmin_query": {
+      "arguments": {
+        "sql": {
+          "required": true,
+          "type": "string"
+        }
+      },
+      "output": {
+        "columns": "array",
+        "notes": "array",
+        "row_count": "integer",
+        "rows": "array",
+        "truncated": "boolean"
+      }
+    },
+    "garmin_show_chart": {
+      "arguments": {
+        "bucket": {
+          "enum": [
+            "day",
+            "week"
+          ],
+          "required": false,
+          "type": "string"
+        },
+        "end": {
+          "required": false,
+          "type": "string"
+        },
+        "metric": {
+          "enum": [
+            "sleep_stages",
+            "awake_minutes",
+            "body_battery_charged",
+            "body_battery_drained",
+            "body_battery_high",
+            "body_battery_low",
+            "calories_active_kcal",
+            "calories_total_kcal",
+            "deep_sleep_minutes",
+            "distance_km",
+            "floors_climbed",
+            "hrv_baseline_high_ms",
+            "hrv_baseline_low_ms",
+            "hrv_last_night_ms",
+            "hrv_weekly_avg_ms",
+            "intensity_minutes_moderate",
+            "intensity_minutes_vigorous",
+            "light_sleep_minutes",
+            "max_hr_bpm",
+            "min_hr_bpm",
+            "rem_sleep_minutes",
+            "respiration_avg_brpm",
+            "resting_hr_bpm",
+            "sleep_avg_hr_bpm",
+            "sleep_avg_respiration_brpm",
+            "sleep_hours",
+            "sleep_score",
+            "step_goal",
+            "steps",
+            "stress_avg",
+            "stress_max"
+          ],
+          "required": true,
+          "type": "string"
+        },
+        "start": {
+          "required": false,
+          "type": "string"
+        }
+      },
+      "output": {
+        "average": "null|number",
+        "bucket": "string",
+        "days_with_data": "integer",
+        "end": "string",
+        "kind": "string",
+        "labels": "array",
+        "metric": "string",
+        "notes": "array",
+        "series": "array",
+        "series[].name": "string",
+        "series[].role": "string",
+        "series[].values": "array",
+        "start": "string",
+        "title": "string",
+        "unit": "string"
+      }
+    },
+    "garmin_sync": {
+      "arguments": {
+        "days_back": {
+          "required": false,
+          "type": "integer"
+        }
+      },
+      "output": {
+        "activities_listed": "integer",
+        "already_running": "boolean",
+        "days_saved": "object",
+        "days_without_data": "object",
+        "errors": "array",
+        "fit_files_saved": "integer",
+        "message": "string",
+        "ok": "boolean"
+      }
+    }
+  }
+}

@@ -88,3 +88,120 @@ def tools_markdown(paths: DataPaths) -> str:
         else:
             lines += ["No parameters.", ""]
     return "\n".join(lines)
+
+
+# --- the stable public API (see "Stability" in CONTRIBUTING.md)
+#
+# A smaller view of the contract: just what a client or prompt can depend on. Tool
+# descriptions, titles and annotations can improve in any release; the names, types and
+# units below can only be added to until the next major version.
+
+
+def _types(spec: dict[str, Any]) -> str:
+    """A schema's type(s) as a stable string, e.g. 'integer|null' or 'ref:Stream'."""
+    found: set[str] = set()
+    for part in spec.get("anyOf", [spec]):
+        if "$ref" in part:
+            found.add("ref:" + part["$ref"].rsplit("/", 1)[-1])
+        kind = part.get("type")
+        if isinstance(kind, list):
+            found.update(kind)
+        elif kind:
+            found.add(kind)
+    return "|".join(sorted(found)) or "any"
+
+
+def _output_fields(schema: dict[str, Any]) -> dict[str, str]:
+    """Every field path in an output schema, with its type. Lists add [] to the path."""
+    defs = schema.get("$defs", {})
+    fields: dict[str, str] = {}
+
+    def walk(node: dict[str, Any], prefix: str, seen: frozenset[str]) -> None:
+        for part in node.get("anyOf", [node]):
+            ref = part.get("$ref")
+            if ref:
+                name = ref.rsplit("/", 1)[-1]
+                if name not in seen:
+                    walk(defs.get(name, {}), prefix, seen | {name})
+            if part.get("type") == "array" and isinstance(part.get("items"), dict):
+                walk(part["items"], prefix + "[]", seen)
+            for key, child in part.get("properties", {}).items():
+                path = f"{prefix}.{key}" if prefix else key
+                fields[path] = _types(child)
+                walk(child, path, seen)
+
+    walk(schema, "", frozenset())
+    return fields
+
+
+def public_api(contract: list[dict[str, Any]]) -> dict[str, Any]:
+    """Tool names, arguments, output fields, metrics and query columns."""
+    from garmin_connect_personal_mcp import metrics, query
+
+    tools: dict[str, Any] = {}
+    for tool in contract:
+        if tool["meta"].get("ui", {}).get("visibility") == ["app"]:
+            continue  # used only by the chart widget, which ships with the server
+        schema = tool["input_schema"]
+        required = set(schema.get("required", []))
+        tools[tool["name"]] = {
+            "arguments": {
+                name: {
+                    "type": _types(spec),
+                    "required": name in required,
+                    **({"enum": spec["enum"]} if "enum" in spec else {}),
+                }
+                for name, spec in schema.get("properties", {}).items()
+            },
+            "output": _output_fields(tool["output_schema"] or {}),
+        }
+    return {
+        "tools": tools,
+        "metrics": {name: m.unit for name, m in metrics.METRICS.items()},
+        "query_columns": {
+            "daily": ["date", *metrics.METRICS],
+            "activities": list(query.ACTIVITY_COLUMNS),
+        },
+        "resources": ["garmin://schema"],
+    }
+
+
+def breaking_changes(frozen: dict[str, Any], current: dict[str, Any]) -> list[str]:
+    """What a 1.x release would break: anything removed, renamed, retyped or newly required."""
+    problems: list[str] = []
+    for name, old in frozen["tools"].items():
+        new = current["tools"].get(name)
+        if new is None:
+            problems.append(f"tool {name} was removed or renamed")
+            continue
+        for arg, spec in old["arguments"].items():
+            now = new["arguments"].get(arg)
+            if now is None:
+                problems.append(f"{name}: argument {arg} was removed or renamed")
+            elif now["type"] != spec["type"]:
+                problems.append(
+                    f"{name}: argument {arg} changed type {spec['type']} -> {now['type']}"
+                )
+            elif set(spec.get("enum", [])) - set(now.get("enum", spec.get("enum", []))):
+                problems.append(f"{name}: argument {arg} lost allowed values")
+        for arg, spec in new["arguments"].items():
+            if spec["required"] and arg not in old["arguments"]:
+                problems.append(f"{name}: new argument {arg} is required (make it optional)")
+        for path, kind in old["output"].items():
+            if path not in new["output"]:
+                problems.append(f"{name}: output field {path} was removed or renamed")
+            elif new["output"][path] != kind:
+                problems.append(
+                    f"{name}: output field {path} changed type {kind} -> {new['output'][path]}"
+                )
+    for metric, unit in frozen["metrics"].items():
+        if metric not in current["metrics"]:
+            problems.append(f"metric {metric} was removed or renamed")
+        elif current["metrics"][metric] != unit:
+            problems.append(f"metric {metric} changed unit {unit} -> {current['metrics'][metric]}")
+    for table, columns in frozen["query_columns"].items():
+        for column in set(columns) - set(current["query_columns"].get(table, [])):
+            problems.append(f"garmin_query: column {table}.{column} was removed or renamed")
+    for uri in set(frozen["resources"]) - set(current["resources"]):
+        problems.append(f"resource {uri} was removed")
+    return problems
