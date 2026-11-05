@@ -964,6 +964,312 @@
       "open_world_hint": false,
       "read_only_hint": true
     },
+    "description": "One day's value of a metric against the user's usual level over the days before it: baseline mean, median and usual range (mean +/- 1 SD), and the day's difference, z-score, percentile and below/within/above. Default: today vs the previous 30 days.",
+    "input_schema": {
+      "properties": {
+        "date": {
+          "default": "today",
+          "description": "YYYY-MM-DD, 'today' or 'yesterday'",
+          "title": "Date",
+          "type": "string"
+        },
+        "days": {
+          "default": 30,
+          "description": "Baseline length in days before date, 7-365",
+          "title": "Days",
+          "type": "integer"
+        },
+        "metric": {
+          "description": "Metric name; see garmin_describe_data",
+          "enum": [
+            "awake_minutes",
+            "body_battery_charged",
+            "body_battery_drained",
+            "body_battery_high",
+            "body_battery_low",
+            "calories_active_kcal",
+            "calories_total_kcal",
+            "deep_sleep_minutes",
+            "distance_km",
+            "floors_climbed",
+            "hrv_baseline_high_ms",
+            "hrv_baseline_low_ms",
+            "hrv_last_night_ms",
+            "hrv_weekly_avg_ms",
+            "intensity_minutes_moderate",
+            "intensity_minutes_vigorous",
+            "light_sleep_minutes",
+            "max_hr_bpm",
+            "min_hr_bpm",
+            "rem_sleep_minutes",
+            "respiration_avg_brpm",
+            "resting_hr_bpm",
+            "sleep_avg_hr_bpm",
+            "sleep_avg_respiration_brpm",
+            "sleep_hours",
+            "sleep_score",
+            "step_goal",
+            "steps",
+            "stress_avg",
+            "stress_max"
+          ],
+          "title": "Metric",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric"
+      ],
+      "title": "garmin_get_baselineArguments",
+      "type": "object"
+    },
+    "meta": {},
+    "name": "garmin_get_baseline",
+    "output_schema": {
+      "$defs": {
+        "BaselineStats": {
+          "properties": {
+            "days_with_data": {
+              "title": "Days With Data",
+              "type": "integer"
+            },
+            "max": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max"
+            },
+            "mean": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mean"
+            },
+            "median": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Median"
+            },
+            "min": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min"
+            },
+            "std_dev": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Std Dev"
+            },
+            "usual_high": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "mean + 1 standard deviation",
+              "title": "Usual High"
+            },
+            "usual_low": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "mean - 1 standard deviation",
+              "title": "Usual Low"
+            }
+          },
+          "required": [
+            "days_with_data",
+            "mean",
+            "median",
+            "std_dev",
+            "usual_low",
+            "usual_high",
+            "min",
+            "max"
+          ],
+          "title": "BaselineStats",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "baseline": {
+          "$ref": "#/$defs/BaselineStats"
+        },
+        "baseline_end": {
+          "description": "The day before date",
+          "title": "Baseline End",
+          "type": "string"
+        },
+        "baseline_start": {
+          "title": "Baseline Start",
+          "type": "string"
+        },
+        "date": {
+          "description": "The day compared with the baseline",
+          "title": "Date",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "difference": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "value - baseline mean, in the metric's unit",
+          "title": "Difference"
+        },
+        "difference_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "difference as a percent of the mean",
+          "title": "Difference Pct"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "percentile": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Percent of baseline days with a lower value (ties count half)",
+          "title": "Percentile"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "enum": [
+                "below",
+                "within",
+                "above"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Where value falls against the usual range",
+          "title": "Position"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The metric on that day; null if not recorded",
+          "title": "Value"
+        },
+        "z_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "difference in standard deviations",
+          "title": "Z Score"
+        }
+      },
+      "required": [
+        "metric",
+        "unit",
+        "description",
+        "date",
+        "value",
+        "baseline_start",
+        "baseline_end",
+        "baseline",
+        "difference",
+        "difference_pct",
+        "z_score",
+        "percentile",
+        "position",
+        "notes"
+      ],
+      "title": "Baseline",
+      "type": "object"
+    },
+    "title": "Compare a day with the usual"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
     "description": "Widget-only: load plot points from the local archive for an already requested chart. Used when a host does not deliver component-only result metadata. Does not create another chart, sync data, or contact Garmin.",
     "input_schema": {
       "properties": {
