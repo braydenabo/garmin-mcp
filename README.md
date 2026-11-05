@@ -62,6 +62,17 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and a Gar
 
 6. **Ask:** *"How did I sleep last night?"*
 
+### Try it without a Garmin account
+
+`demo` writes about four months of made-up data, shaped like Garmin's, into a new folder. Point the server at that folder and every tool works on it:
+
+```bash
+garmin-connect-personal-mcp demo ~/garmin-demo
+GARMIN_MCP_DATA_DIR=~/garmin-demo garmin-connect-personal-mcp serve --read-only
+```
+
+It includes weekend sleep-ins, a training block, a few sick days and some days without the watch, so there's something to ask about. It never touches your real archive.
+
 ## What you can ask
 
 - "Summarize my training and recovery this week."

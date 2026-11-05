@@ -4,6 +4,10 @@
 
 A Garmin device that syncs to Garmin Connect, a Garmin Connect account, and a Personal API key, which you create in [Garmin Connect's settings](https://connect.garmin.com/app/settings/personalApiToken). On your computer you need [uv](https://docs.astral.sh/uv/getting-started/installation/); it installs Python for you if needed. The [README quickstart](../README.md#quickstart) takes about five minutes.
 
+## Can I try it without a Garmin account?
+
+Yes. `garmin-connect-personal-mcp demo ~/garmin-demo` writes made-up data into a new folder; run the server with `GARMIN_MCP_DATA_DIR=~/garmin-demo` to use it. See [the README](../README.md#try-it-without-a-garmin-account).
+
 ## Which devices work?
 
 Any device that syncs to Garmin Connect. This project reads Garmin's servers, not the watch, so what you get depends on what your device records: HRV needs a watch that measures it overnight, power needs a power meter or running-power support, and so on. Missing data is reported as missing, never as zero.
