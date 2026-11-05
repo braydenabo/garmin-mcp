@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Changed
+
+- Stable. Tool names, arguments, output fields, metrics and units, query tables, CLI commands and environment variables only grow until 2.0; see Stability in CONTRIBUTING.md. A test enforces it against `tests/snapshots/public-api-v1.json`.
+- The README is rewritten to explain what the project is, why it's built this way, and how to start.
+
 ## [0.6.0] - 2026-11-05
 
 ### Added

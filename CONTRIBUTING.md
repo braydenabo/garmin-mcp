@@ -40,6 +40,31 @@ The pre-commit hooks scan for secrets and block database, FIT and archive files.
 - Add a line under **Unreleased** in [CHANGELOG.md](CHANGELOG.md) for anything a user would notice.
 - MCP tool names, arguments and annotations are public API. If you change one on purpose, update the snapshot and docs with `uv run python scripts/gen_tools_doc.py` and explain why in the pull request.
 
+## Stability
+
+From 1.0 the project follows [Semantic Versioning](https://semver.org/). People's prompts, scripts and saved setups depend on the server, so within a major version its public API only grows.
+
+**Public, and kept stable until the next major version:**
+
+- tool names, and their argument names and types
+- output field names and types
+- metric names and their units
+- `garmin_query`'s tables and columns, and the `garmin://schema` resource
+- CLI commands and options, and environment variables
+
+**Fine in any minor release:**
+
+- new tools, metrics, output fields, query columns or CLI options
+- new *optional* arguments, and new values for an argument that takes a fixed set
+- better tool descriptions, titles, notes and error messages
+- anything inside the archive, which only this project reads
+
+**Breaking, so only in a new major version:** renaming or removing anything public, changing its type or unit, making an optional argument required, or adding a required one. To replace something, add the new name and keep the old one working until the next major version. Say in the changelog that it's deprecated.
+
+`tests/snapshots/public-api-v1.json` records the 1.x tools, metrics and query tables, and a test fails if a change would break them. CLI commands and environment variables are checked in review. After deliberately adding something you want to promise, record it with `uv run python scripts/freeze_api.py`. The script refuses to drop anything. Starting 2.0 means bumping the version first; the script then writes `public-api-v2.json`.
+
+The chart widget's helper tool, `garmin_get_chart_data`, isn't public: only the widget that ships with the server calls it.
+
 ## Releasing (maintainers)
 
 1. Make sure CI on `main` is green.
