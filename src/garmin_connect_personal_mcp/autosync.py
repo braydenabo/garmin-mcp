@@ -57,7 +57,7 @@ def start_if_stale(
 ) -> bool:
     """Start a background sync if the archive is stale and a key is saved; True if started."""
     key_present = has_key or (lambda: config.api_key_file().exists() or config.api_key_from_env())
-    if not key_present() or not is_stale(paths):
+    if paths.is_demo() or not key_present() or not is_stale(paths):
         return False
     launch = start or (
         lambda fn: threading.Thread(target=fn, name="garmin-sync", daemon=True).start()

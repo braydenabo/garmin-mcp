@@ -383,7 +383,7 @@ def build(
                 activities += 1
     finally:
         conn.close()
-    (paths.root / "DEMO.json").write_text(
+    paths.demo_marker.write_text(
         json.dumps({"demo": True, "seed": seed, "days": days, "end": end.isoformat()}) + "\n",
         encoding="utf-8",
     )

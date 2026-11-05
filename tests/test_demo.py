@@ -112,3 +112,44 @@ def test_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(["demo", str(folder)]) == 1
     assert "isn't empty" in capsys.readouterr().err
     assert cli.main(["demo", str(tmp_path / "x"), "--end", "soon"]) == 2
+
+
+# --- real data can never be synced into a demo archive
+
+
+def test_run_sync_refuses_a_demo_archive(paths: config.DataPaths) -> None:
+    from garmin_connect_personal_mcp import sync
+
+    class NoApi:
+        def call(self, request: object) -> object:
+            raise AssertionError("must not contact Garmin")
+
+    with pytest.raises(sync.DemoArchive, match="demo archive"):
+        sync.run_sync(NoApi(), paths)
+
+
+def test_cli_sync_refuses_a_demo_archive(
+    paths: config.DataPaths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("GARMIN_MCP_DATA_DIR", str(paths.root))
+    monkeypatch.setenv("GARMIN_PERSONAL_API_KEY", "synthetic-key-for-this-test")
+    assert cli.main(["sync"]) == 1
+    assert "demo archive" in capsys.readouterr().err
+
+
+def test_sync_tool_and_startup_sync_refuse_a_demo_archive(paths: config.DataPaths) -> None:
+    import anyio
+    from mcp import Client
+
+    from garmin_connect_personal_mcp import autosync
+
+    async def call() -> tuple[bool, str]:
+        async with Client(server.build_server(paths, api_factory=lambda: None)) as client:
+            result = await client.call_tool("garmin_sync", {})
+            return result.is_error, result.content[0].text  # type: ignore[union-attr]
+
+    error, text = anyio.run(call)
+    assert error and "demo archive" in text
+    started: list[object] = []
+    assert not autosync.start_if_stale(paths, has_key=lambda: True, start=started.append)
+    assert started == []

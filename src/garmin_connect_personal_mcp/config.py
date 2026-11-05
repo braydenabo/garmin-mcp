@@ -39,6 +39,14 @@ class DataPaths:
     def sync_lock(self) -> Path:
         return self.root / "sync.lock"
 
+    @property
+    def demo_marker(self) -> Path:
+        """Present only in archives made by `demo`, which must never receive real data."""
+        return self.root / "DEMO.json"
+
+    def is_demo(self) -> bool:
+        return self.demo_marker.exists()
+
 
 def data_paths(env: Mapping[str, str] | None = None) -> DataPaths:
     """`GARMIN_MCP_DATA_DIR` if set, else the OS user data dir."""

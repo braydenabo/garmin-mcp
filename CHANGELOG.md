@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format is based on 
 ### Added
 
 - `demo FOLDER`: writes about four months of made-up data, shaped like Garmin's, with a FIT file per activity, so the server can be tried without a Garmin account. It includes weekend sleep-ins, a training block, a sick spell and days without the watch. It refuses any folder that isn't new or empty, and marks the folder with `DEMO.json`.
+- Sync refuses to run against a demo archive, from the CLI, the `garmin_sync` tool, the daily schedule or startup, so real data can never mix into made-up data.
+- `evals/`: questions to ask an assistant connected to a demo archive, with grading criteria, and `scripts/eval_key.py` to compute the expected answers.
 
 ## [0.5.0] - 2026-11-05
 
