@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-05
+
 ### Added
 
 - `demo FOLDER`: writes about four months of made-up data, shaped like Garmin's, with a FIT file per activity, so the server can be tried without a Garmin account. It includes weekend sleep-ins, a training block, a sick spell and days without the watch. It refuses any folder that isn't new or empty, and marks the folder with `DEMO.json`.
@@ -69,7 +71,8 @@ First release. Everything below is new.
 - Project skeleton: package, `--version` CLI, CI on Linux, macOS and Windows.
 - Guards against committing secrets and health data.
 
-[Unreleased]: https://github.com/braydenabo/garmin-mcp/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/braydenabo/garmin-mcp/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.2.0...v0.3.0
