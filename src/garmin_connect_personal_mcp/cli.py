@@ -13,7 +13,12 @@ from pathlib import Path
 from garmin_connect_personal_mcp import __version__, clients, config, db, doctor, schedule
 from garmin_connect_personal_mcp.garmin_client import GarminApi, GarminError
 from garmin_connect_personal_mcp.progress import ProgressDisplay
-from garmin_connect_personal_mcp.sync import DAILY_DATASETS, SyncAlreadyRunning, run_sync
+from garmin_connect_personal_mcp.sync import (
+    DAILY_DATASETS,
+    DEMO_REFUSAL,
+    SyncAlreadyRunning,
+    run_sync,
+)
 
 PROG = "garmin-connect-personal-mcp"
 MAX_DAYS_BACK = 3650  # 10 years; a guard against typos, not a Garmin limit
@@ -256,6 +261,9 @@ def cmd_sync(args: argparse.Namespace) -> int:
         print(f"Error: --days-back must be between 1 and {MAX_DAYS_BACK}.", file=sys.stderr)
         return 2
     paths = config.data_paths()
+    if paths.is_demo():
+        print(f"Error: {DEMO_REFUSAL}", file=sys.stderr)
+        return 1
     config.ensure_data_dir(paths)
     try:
         api = GarminApi()

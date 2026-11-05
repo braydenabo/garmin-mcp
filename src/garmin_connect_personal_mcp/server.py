@@ -483,8 +483,10 @@ def sync_now(
     paths: DataPaths, days_back: int, api_factory: Callable[[], Any] | None = None
 ) -> SyncResult:
     from garmin_connect_personal_mcp.garmin_client import GarminApi, GarminError
-    from garmin_connect_personal_mcp.sync import SyncAlreadyRunning, run_sync
+    from garmin_connect_personal_mcp.sync import DEMO_REFUSAL, SyncAlreadyRunning, run_sync
 
+    if paths.is_demo():
+        raise ToolError(DEMO_REFUSAL)
     if not 0 <= days_back <= MAX_TOOL_SYNC_DAYS:
         raise ToolError(
             f"days_back must be 0-{MAX_TOOL_SYNC_DAYS}. For a longer backfill the user can run "

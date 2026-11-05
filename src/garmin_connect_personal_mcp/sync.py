@@ -87,6 +87,19 @@ class SyncAlreadyRunning(Exception):
     """Another sync holds the lock (a scheduled run, another terminal, or the MCP server)."""
 
 
+DEMO_REFUSAL = (
+    "This is the made-up demo archive (it has a DEMO.json file), so sync is off: real Garmin "
+    "data must never mix into it. Unset GARMIN_MCP_DATA_DIR to sync your real archive."
+)
+
+
+class DemoArchive(Exception):
+    """Sync was pointed at a demo archive."""
+
+    def __init__(self) -> None:
+        super().__init__(DEMO_REFUSAL)
+
+
 @contextmanager
 def sync_lock(path: Path) -> Iterator[None]:
     """Hold an OS-level lock for the duration of a sync.
@@ -378,6 +391,8 @@ def run_sync(
     pause_s: float = 0.5,
     progress: Progress = _no_progress,
 ) -> SyncReport:
+    if paths.is_demo():
+        raise DemoArchive
     today = today or datetime.now().astimezone().date()
 
     def pause() -> None:
