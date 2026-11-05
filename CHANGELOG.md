@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Added
+
+- `garmin_get_activity_stream`: one activity's heart rate, pace or speed, cadence, power, altitude and distance over elapsed time, read from its stored FIT file and averaged into even intervals (about 300 points by default, or choose `interval_seconds`). `start_minute` and `end_minute` zoom into part of a workout. Pauses show as gaps, unrecorded fields are null, and GPS positions are never read.
+
 ## [0.2.0] - 2026-11-05
 
 First release. Everything below is new.

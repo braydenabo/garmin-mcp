@@ -645,6 +645,325 @@
       "open_world_hint": false,
       "read_only_hint": true
     },
+    "description": "One activity's heart rate, pace or speed, cadence, power, altitude and distance over elapsed time, averaged into even intervals (about 300 points by default). For pacing, drift, intervals and climbs. Zoom in with start_minute/end_minute. No GPS.",
+    "input_schema": {
+      "properties": {
+        "activity_id": {
+          "description": "From garmin_list_activities",
+          "title": "Activity Id",
+          "type": "integer"
+        },
+        "end_minute": {
+          "default": 0,
+          "description": "Elapsed minute to stop at; 0 for the end",
+          "title": "End Minute",
+          "type": "number"
+        },
+        "interval_seconds": {
+          "default": 0,
+          "description": "Seconds per point, 1-600; 0 picks one",
+          "title": "Interval Seconds",
+          "type": "integer"
+        },
+        "start_minute": {
+          "default": 0,
+          "description": "Elapsed minute to start from; 0 for the start",
+          "title": "Start Minute",
+          "type": "number"
+        }
+      },
+      "required": [
+        "activity_id"
+      ],
+      "title": "garmin_get_activity_streamArguments",
+      "type": "object"
+    },
+    "meta": {},
+    "name": "garmin_get_activity_stream",
+    "output_schema": {
+      "properties": {
+        "activity_id": {
+          "title": "Activity Id",
+          "type": "integer"
+        },
+        "activity_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Activity Type"
+        },
+        "altitude_m": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Altitude M"
+        },
+        "cadence_rpm": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Other sports: pedal revolutions or swim strokes per minute",
+          "title": "Cadence Rpm"
+        },
+        "cadence_spm": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Steps per minute, on-foot sports",
+          "title": "Cadence Spm"
+        },
+        "distance_km": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cumulative, at each point's end",
+          "title": "Distance Km"
+        },
+        "elapsed_minutes": {
+          "description": "Start of each point, from the first sample",
+          "items": {
+            "type": "number"
+          },
+          "title": "Elapsed Minutes",
+          "type": "array"
+        },
+        "end_minute": {
+          "description": "Elapsed minute where the window ends",
+          "title": "End Minute",
+          "type": "number"
+        },
+        "heart_rate_bpm": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null if never recorded",
+          "title": "Heart Rate Bpm"
+        },
+        "interval_seconds": {
+          "description": "Each point averages this many seconds",
+          "title": "Interval Seconds",
+          "type": "integer"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "pace_min_per_km": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "On-foot sports only",
+          "title": "Pace Min Per Km"
+        },
+        "point_count": {
+          "title": "Point Count",
+          "type": "integer"
+        },
+        "power_w": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Power W"
+        },
+        "speed_kmh": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Speed Kmh"
+        },
+        "start_minute": {
+          "description": "Elapsed minute where the window starts",
+          "title": "Start Minute",
+          "type": "number"
+        },
+        "temperature_c": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Device sensor, not air",
+          "title": "Temperature C"
+        },
+        "total_minutes": {
+          "description": "Elapsed minutes from first to last sample",
+          "title": "Total Minutes",
+          "type": "number"
+        }
+      },
+      "required": [
+        "activity_id",
+        "activity_type",
+        "interval_seconds",
+        "start_minute",
+        "end_minute",
+        "total_minutes",
+        "point_count",
+        "elapsed_minutes",
+        "heart_rate_bpm",
+        "speed_kmh",
+        "pace_min_per_km",
+        "cadence_spm",
+        "cadence_rpm",
+        "power_w",
+        "altitude_m",
+        "distance_km",
+        "temperature_c",
+        "notes"
+      ],
+      "title": "Stream",
+      "type": "object"
+    },
+    "title": "Get an activity over time"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
     "description": "Widget-only: load plot points from the local archive for an already requested chart. Used when a host does not deliver component-only result metadata. Does not create another chart, sync data, or contact Garmin.",
     "input_schema": {
       "properties": {

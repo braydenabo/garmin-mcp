@@ -157,6 +157,7 @@ def test_serve_flags_over_stdio(isolated_home: Path, monkeypatch: pytest.MonkeyP
         "garmin_describe_data",
         "garmin_list_activities",
         "garmin_get_activity",
+        "garmin_get_activity_stream",
     }
 
 

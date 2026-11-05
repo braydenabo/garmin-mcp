@@ -22,6 +22,19 @@ Full summary of one activity: duration, distance, pace or speed, heart rate and 
 | --- | --- | --- | --- |
 | `activity_id` | integer | required | From garmin_list_activities |
 
+## `garmin_get_activity_stream`
+
+One activity's heart rate, pace or speed, cadence, power, altitude and distance over elapsed time, averaged into even intervals (about 300 points by default). For pacing, drift, intervals and climbs. Zoom in with start_minute/end_minute. No GPS.
+
+*read-only, local only*
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `activity_id` | integer | required | From garmin_list_activities |
+| `interval_seconds` | integer | default `0` | Seconds per point, 1-600; 0 picks one |
+| `start_minute` | number | default `0` | Elapsed minute to start from; 0 for the start |
+| `end_minute` | number | default `0` | Elapsed minute to stop at; 0 for the end |
+
 ## `garmin_get_chart_data`
 
 Widget-only: load plot points from the local archive for an already requested chart. Used when a host does not deliver component-only result metadata. Does not create another chart, sync data, or contact Garmin.
