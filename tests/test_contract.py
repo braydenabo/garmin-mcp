@@ -64,3 +64,95 @@ def test_data_doc_lists_every_metric() -> None:
     text = (ROOT / "docs" / "data.md").read_text(encoding="utf-8")
     for name, metric in metrics.METRICS.items():
         assert f"| `{name}` | {metric.unit} | {metric.description} |" in text, name
+
+
+# --- stability: within a major version the public API can only grow
+
+
+def test_public_api_is_backward_compatible(tmp_path: Path) -> None:
+    import json
+
+    from garmin_connect_personal_mcp import __version__
+    from garmin_connect_personal_mcp.contract import breaking_changes, public_api
+
+    major = max(1, int(__version__.split(".")[0]))
+    frozen_file = ROOT / "tests" / "snapshots" / f"public-api-v{major}.json"
+    assert frozen_file.exists(), f"Run `uv run python scripts/freeze_api.py` for version {major}."
+    frozen = json.loads(frozen_file.read_text(encoding="utf-8"))
+    problems = breaking_changes(frozen, public_api(tools_contract(DataPaths(tmp_path))))
+    assert not problems, (
+        "These would break clients and prompts that depend on the current major version. "
+        "Keep the old name working (add, don't rename), or save it for the next major "
+        "version; see Stability in CONTRIBUTING.md:\n" + "\n".join(problems)
+    )
+
+
+def _api(**tool: object) -> dict[str, object]:
+    base = {
+        "arguments": {"metric": {"type": "string", "required": True, "enum": ["a", "b"]}},
+        "output": {"value": "number|null", "notes": "array"},
+    }
+    return {
+        "tools": {"garmin_x": {**base, **tool}},
+        "metrics": {"steps": "steps"},
+        "query_columns": {"daily": ["date", "steps"]},
+        "resources": ["garmin://schema"],
+    }
+
+
+def test_additions_are_allowed() -> None:
+    from garmin_connect_personal_mcp.contract import breaking_changes
+
+    grown = _api(
+        arguments={
+            "metric": {"type": "string", "required": True, "enum": ["a", "b", "c"]},
+            "days": {"type": "integer", "required": False},
+        },
+        output={"value": "number|null", "notes": "array", "extra": "string"},
+    )
+    grown["tools"]["garmin_new"] = grown["tools"]["garmin_x"]  # type: ignore[index]
+    grown["metrics"] = {"steps": "steps", "floors": "floors"}
+    assert breaking_changes(_api(), grown) == []
+
+
+def test_breaking_changes_are_caught() -> None:
+    from garmin_connect_personal_mcp.contract import breaking_changes
+
+    old = _api()
+    cases = {
+        "removed": ({"tools": {}}, "tool garmin_x was removed"),
+        "arg renamed": (
+            _api(arguments={"metric_name": {"type": "string", "required": True}}),
+            "argument metric was removed",
+        ),
+        "arg retyped": (
+            _api(arguments={"metric": {"type": "integer", "required": True}}),
+            "changed type",
+        ),
+        "enum shrank": (
+            _api(arguments={"metric": {"type": "string", "required": True, "enum": ["a"]}}),
+            "lost allowed values",
+        ),
+        "new required": (
+            _api(
+                arguments={
+                    "metric": {"type": "string", "required": True, "enum": ["a", "b"]},
+                    "days": {"type": "integer", "required": True},
+                }
+            ),
+            "new argument days is required",
+        ),
+        "output removed": (_api(output={"notes": "array"}), "output field value was removed"),
+        "output retyped": (
+            _api(output={"value": "string", "notes": "array"}),
+            "output field value changed type",
+        ),
+    }
+    for label, (change, message) in cases.items():
+        new = {**old, **change}
+        problems = breaking_changes(old, new)
+        assert any(message in p for p in problems), (label, problems)
+    unit = {**old, "metrics": {"steps": "thousands"}}
+    assert any("changed unit" in p for p in breaking_changes(old, unit))
+    gone = {**old, "query_columns": {"daily": ["date"]}, "resources": []}
+    assert len(breaking_changes(old, gone)) == 2
