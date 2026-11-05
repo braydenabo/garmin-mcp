@@ -68,6 +68,7 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and a Gar
 - "Is my resting heart rate lower than three months ago?"
 - "Was last night's sleep normal for me?"
 - "Did I sleep more in October than in September?"
+- "On days I ran, was my sleep score higher?" (answered with read-only SQL)
 - "How has my weekly running distance built up since July?"
 - "Anything unusual in my HRV lately?"
 - "Show me my sleep stages for the last two weeks."
@@ -75,7 +76,7 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and a Gar
 
 Ask to *see* your data ("show me my last 7 days of sleep") and apps that support [MCP Apps](https://modelcontextprotocol.io/) (Claude Desktop, claude.ai, ChatGPT, VS Code) display an interactive chart. Elsewhere you get the same numbers as text.
 
-The assistant uses ten tools: `garmin_describe_data`, `garmin_get_day`, `garmin_get_trend`, `garmin_get_baseline`, `garmin_compare_periods`, `garmin_list_activities`, `garmin_get_activity`, `garmin_get_activity_stream`, `garmin_show_chart` and `garmin_sync`. See [docs/tools.md](docs/tools.md). Missing data is reported as missing, never as zero.
+The assistant uses eleven tools: `garmin_describe_data`, `garmin_get_day`, `garmin_get_trend`, `garmin_get_baseline`, `garmin_compare_periods`, `garmin_list_activities`, `garmin_get_activity`, `garmin_get_activity_stream`, `garmin_query`, `garmin_show_chart` and `garmin_sync`. See [docs/tools.md](docs/tools.md). Missing data is reported as missing, never as zero.
 
 ## Troubleshooting
 
@@ -92,7 +93,7 @@ It checks your API key, Garmin access, the local archive, recent sync errors and
 - **You run it yourself, with your own key.** There is no hosted service, and your data never passes through this project.
 - Your archive and API key stay on your machine, outside this repository.
 - The only network calls go to Garmin's own API, to sync. `serve --read-only` turns even that off.
-- Tools never return your name, profile photos or GPS coordinates, even though Garmin's records contain them, so a cloud assistant isn't told where you live.
+- Tools never return your name, profile photos or GPS coordinates, even though Garmin's records contain them, so a cloud assistant isn't told where you live. The SQL tool, `garmin_query`, reads a cleaned copy that doesn't contain them either. Turn it off by leaving `query` out of `--toolsets`.
 
 ## Development
 

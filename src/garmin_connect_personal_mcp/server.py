@@ -34,6 +34,7 @@ from garmin_connect_personal_mcp import (
     db,
     fit,
     metrics,
+    query,
     streams,
 )
 from garmin_connect_personal_mcp.config import DataPaths
@@ -70,6 +71,7 @@ TOOLSETS: dict[str, tuple[str, ...]] = {
         "garmin_compare_periods",
     ),
     "activities": ("garmin_list_activities", "garmin_get_activity", "garmin_get_activity_stream"),
+    "query": ("garmin_query",),
     "sync": ("garmin_sync",),
     "charts": ("garmin_show_chart", "garmin_get_chart_data"),
 }
@@ -348,6 +350,19 @@ def compare_periods(
         b = (*reference, values(*reference))
     spec = metrics.METRICS[metric]
     return analysis.compare_periods(metric, spec.unit, spec.description, a, b)
+
+
+SCHEMA_URI = "garmin://schema"
+
+
+def run_query(paths: DataPaths, sql: str) -> query.QueryResult:
+    with open_archive(paths) as conn:
+        if conn is None:
+            raise ToolError(f"No data has been synced yet. The user can run `{PROG} sync`.")
+        try:
+            return query.run(conn, paths.db, sql)
+        except query.QueryError as exc:
+            raise ToolError(str(exc)) from None
 
 
 MAX_PAGE_SIZE = 100
@@ -908,6 +923,29 @@ def build_server(
         return get_activity_stream(paths, activity_id, interval_seconds, start_minute, end_minute)
 
     @server.tool(
+        name="garmin_query",
+        title="Query the data with SQL",
+        description=(
+            "One read-only SQLite SELECT over two clean tables: daily (a row per date, a column "
+            "per metric named as in garmin_describe_data) and activities (a row per workout). "
+            "For questions other tools can't answer. Max 500 rows. Full schema: garmin://schema."
+        ),
+        annotations=READ_ONLY,
+    )
+    def garmin_query(
+        sql: Annotated[
+            str,
+            Field(
+                description=(
+                    "e.g. SELECT strftime('%Y-%m', date) AS month, avg(steps) FROM daily "
+                    "GROUP BY month"
+                )
+            ),
+        ],
+    ) -> query.QueryResult:
+        return run_query(paths, sql)
+
+    @server.tool(
         name="garmin_sync",
         title="Sync from Garmin",
         description=(
@@ -924,6 +962,17 @@ def build_server(
         ] = 0,
     ) -> SyncResult:
         return sync_now(paths, days_back, api_factory)
+
+    if "query" in toolsets:
+        server.add_resource(
+            TextResource(
+                uri=SCHEMA_URI,
+                name="Garmin query schema",
+                description="Tables and columns that garmin_query can read, with units.",
+                mime_type="text/plain",
+                text=query.schema_text(),
+            )
+        )
 
     enabled = {name for toolset in toolsets for name in TOOLSETS[toolset]}
     if read_only:

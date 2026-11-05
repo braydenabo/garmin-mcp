@@ -60,7 +60,7 @@ def test_chart_tool_points_to_the_chart_view() -> None:
         "openai/outputTemplate": VERSIONED_CHART_URI,
     }
     assert tool.annotations.read_only_hint is True
-    assert {(r.uri, r.mime_type) for r in resources} == {
+    assert {(r.uri, r.mime_type) for r in resources if r.uri.startswith("ui://")} == {
         (CHART_URI, "text/html;profile=mcp-app"),
         (VERSIONED_CHART_URI, "text/html;profile=mcp-app"),
     }
