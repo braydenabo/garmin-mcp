@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-05
+
 ### Added
 
 - `docs/troubleshooting.md`, organised by symptom, and `docs/faq.md`: devices, history, rate limits, privacy, units and uninstalling.
@@ -61,7 +63,8 @@ First release. Everything below is new.
 - Project skeleton: package, `--version` CLI, CI on Linux, macOS and Windows.
 - Guards against committing secrets and health data.
 
-[Unreleased]: https://github.com/braydenabo/garmin-mcp/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/braydenabo/garmin-mcp/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/braydenabo/garmin-mcp/releases/tag/v0.2.0
