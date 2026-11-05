@@ -301,6 +301,7 @@ def test_render_json() -> None:
         "summary": "rejected",
         "fix": "Make a new key.",
         "details": [],
+        "help": None,  # set by run_checks
     }
 
 
@@ -341,3 +342,70 @@ def test_cli_doctor_json(capsys: pytest.CaptureFixture[str]) -> None:
     report = json.loads(capsys.readouterr().out)
     assert report["tool"] == "garmin-connect-personal-mcp"
     assert any(c["name"] == "API key" and c["status"] == "fail" for c in report["checks"])
+
+
+# --- links to troubleshooting
+
+
+@pytest.mark.parametrize(
+    ("check", "section"),
+    [
+        (doctor.Check("API key", "fail", "no key saved", fix="Run init."), "api-key"),
+        (
+            doctor.Check("Garmin access", "fail", "Garmin rejected the API key (HTTP 401)."),
+            "api-key",
+        ),
+        (
+            doctor.Check("Garmin access", "warn", "rate limit (HTTP 429)", fix="Wait."),
+            "rate-limited",
+        ),
+        (
+            doctor.Check("Garmin access", "fail", "Couldn't reach Garmin.", fix="x"),
+            "cant-reach-garmin",
+        ),
+        (doctor.Check("Archive", "fail", "can't open", fix="Restore."), "the-archive"),
+        (
+            doctor.Check("Contents", "info", "no data", fix="Run sync."),
+            "no-data-or-data-is-missing",
+        ),
+        (doctor.Check("Sync errors", "warn", "2 day(s) failed", fix="x"), "sync-errors"),
+        (doctor.Check("Daily sync", "info", "not installed", fix="x"), "daily-sync-isnt-running"),
+    ],
+)
+def test_problems_link_to_their_troubleshooting_section(check: doctor.Check, section: str) -> None:
+    assert doctor.help_link(check) == f"{doctor.TROUBLESHOOTING_URL}#{section}"
+
+
+def test_healthy_checks_have_no_link() -> None:
+    assert doctor.help_link(doctor.Check("API key", "ok", "saved")) is None
+    assert doctor.help_link(doctor.Check("Sync running", "info", "no")) is None
+
+
+def test_every_linked_section_exists() -> None:
+    import re
+
+    text = (Path(__file__).resolve().parent.parent / "docs" / "troubleshooting.md").read_text(
+        encoding="utf-8"
+    )
+
+    def slug(heading: str) -> str:  # GitHub's anchor rules, for the headings used here
+        return re.sub(r"[^a-z0-9 _-]", "", heading.lower()).replace(" ", "-")
+
+    anchors = {slug(h) for h in re.findall(r"^## (.+)$", text, re.MULTILINE)}
+    linked = {
+        *doctor._SECTIONS.values(),
+        "rate-limited",
+        "cant-reach-garmin",
+        "start-here-run-doctor",
+    }
+    assert linked <= anchors, linked - anchors
+
+
+def test_text_report_shows_links_for_problems_only(paths: config.DataPaths) -> None:
+    checks = doctor.run_checks(paths, offline=True, backend_factory=lambda: FakeBackend(False))  # type: ignore[arg-type,return-value]
+    text = doctor.render_text(checks)
+    assert f"More: {doctor.TROUBLESHOOTING_URL}#api-key" in text
+    assert "#daily-sync-isnt-running" not in text  # info: the fix is enough
+    assert json.loads(doctor.render_json(checks))["checks"][-1]["help"].endswith(
+        "#daily-sync-isnt-running"
+    )
