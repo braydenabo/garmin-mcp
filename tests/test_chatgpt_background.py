@@ -22,6 +22,8 @@ class FakeLaunchctl:
         self.loaded = False
         self.state = "running"
         self.fail = ""
+        self.linger = 0  # print calls that still show the job loaded after bootout
+        self.bootstrap_failures = 0  # bootstraps refused while launchd is still tearing down
 
     def __call__(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         self.calls.append(args)
@@ -29,8 +31,13 @@ class FakeLaunchctl:
         if args[0] == self.fail:
             code, text = 1, "synthetic-sensitive-upstream-output"
         elif args[0] == "print":
-            code = 0 if self.loaded else 113
+            code = 0 if self.loaded or self.linger > 0 else 113
+            if not self.loaded:
+                self.linger = max(self.linger - 1, 0)
             text = f"state = {self.state}\n"
+        elif args[0] == "bootstrap" and self.bootstrap_failures:
+            self.bootstrap_failures -= 1
+            code, text = 5, "Bootstrap failed: 5: Input/output error"
         elif args[0] in ("bootstrap", "kickstart"):
             self.loaded = True
         elif args[0] == "bootout":
@@ -56,6 +63,7 @@ def prepared(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FakeLaunchctl:
     monkeypatch.setattr(sys, "executable", str(tmp_path / "python env" / "python"))
     runner = FakeLaunchctl()
     monkeypatch.setattr(background, "_command", runner)
+    monkeypatch.setattr(background, "_sleep", lambda seconds: None)
     return runner
 
 
@@ -329,3 +337,45 @@ def test_failed_check_does_not_automatically_recommend_key_replacement(
     output = capsys.readouterr()
     assert "does not mean your API key was rejected" in output.err
     assert "--replace-key" not in output.err
+
+
+def test_stop_waits_for_launchd_to_unload(prepared: FakeLaunchctl) -> None:
+    assert cli.main(["chatgpt-background", "install"]) == 0
+    prepared.linger = 3
+    assert cli.main(["chatgpt-background", "stop"]) == 0
+    prints_after_bootout = [
+        c
+        for c in prepared.calls[
+            prepared.calls.index(next(c for c in prepared.calls if c[0] == "bootout")) :
+        ]
+        if c[0] == "print"
+    ]
+    assert len(prints_after_bootout) == 4  # three still loaded, then unloaded
+
+
+def test_stop_reports_a_job_that_never_unloads(
+    prepared: FakeLaunchctl, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli.main(["chatgpt-background", "install"]) == 0
+    prepared.linger = background.UNLOAD_POLLS + 5
+    assert cli.main(["chatgpt-background", "stop"]) == 1
+    assert "still stopping" in capsys.readouterr().err
+
+
+def test_immediate_restart_retries_bootstrap(prepared: FakeLaunchctl) -> None:
+    assert cli.main(["chatgpt-background", "install"]) == 0
+    assert cli.main(["chatgpt-background", "stop"]) == 0
+    prepared.bootstrap_failures = 2
+    assert cli.main(["chatgpt-background", "start"]) == 0
+    assert prepared.loaded
+    assert [c[0] for c in prepared.calls[-3:]] == ["bootstrap"] * 3
+
+
+def test_restart_gives_up_after_a_few_tries(
+    prepared: FakeLaunchctl, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli.main(["chatgpt-background", "install"]) == 0
+    assert cli.main(["chatgpt-background", "stop"]) == 0
+    prepared.bootstrap_failures = background.BOOTSTRAP_ATTEMPTS
+    assert cli.main(["chatgpt-background", "start"]) == 1
+    assert "could not start" in capsys.readouterr().err
