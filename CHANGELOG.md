@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-05
+
 ### Fixed
 
 - `serve` now loads every toolset by default. In 0.3.0 its built-in default list left out the new `query` toolset, so `garmin_query` and `garmin://schema` only appeared with `--toolsets` including `query`.
@@ -53,6 +55,7 @@ First release. Everything below is new.
 - Project skeleton: package, `--version` CLI, CI on Linux, macOS and Windows.
 - Guards against committing secrets and health data.
 
-[Unreleased]: https://github.com/braydenabo/garmin-mcp/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/braydenabo/garmin-mcp/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/braydenabo/garmin-mcp/releases/tag/v0.2.0
