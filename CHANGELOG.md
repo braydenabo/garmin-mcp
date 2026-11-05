@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- `docs/data.md`: where your data is kept, what sync stores, every daily metric with its unit, what the activity stream reads from FIT files, and what the tools never return.
 - `garmin_query`: one read-only SQLite `SELECT` over two clean tables, `daily` (a column per metric) and `activities`, for questions the other tools can't answer. Queries run against a throwaway in-memory copy built with the same rules as the other tools, so raw Garmin responses, names and GPS coordinates aren't there to read. Only `SELECT` is allowed, queries stop after 2 seconds, and results are capped at 500 rows. The `garmin://schema` resource lists every table and column with units. It belongs to the new `query` toolset.
 - `garmin_compare_periods`: one metric in two date ranges side by side (by default the last 30 days against the 30 before): days with data, mean, median, spread, min and max for each, and the difference in means. Notes flag empty or sparse periods, uneven coverage and overlapping ranges.
 - `garmin_get_baseline`: how one day's value of a metric compares with your own usual level over the days before it (30 by default, 7 to 365): baseline mean, median and usual range (mean ± 1 standard deviation), and the day's difference, z-score, percentile and whether it is below, within or above the usual range. Too little history is reported rather than guessed at.
