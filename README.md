@@ -76,7 +76,7 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and a Gar
 
 Ask to *see* your data ("show me my last 7 days of sleep") and apps that support [MCP Apps](https://modelcontextprotocol.io/) (Claude Desktop, claude.ai, ChatGPT, VS Code) display an interactive chart. Elsewhere you get the same numbers as text.
 
-The assistant uses eleven tools: `garmin_describe_data`, `garmin_get_day`, `garmin_get_trend`, `garmin_get_baseline`, `garmin_compare_periods`, `garmin_list_activities`, `garmin_get_activity`, `garmin_get_activity_stream`, `garmin_query`, `garmin_show_chart` and `garmin_sync`. See [docs/tools.md](docs/tools.md). Missing data is reported as missing, never as zero.
+The assistant uses eleven tools: `garmin_describe_data`, `garmin_get_day`, `garmin_get_trend`, `garmin_get_baseline`, `garmin_compare_periods`, `garmin_list_activities`, `garmin_get_activity`, `garmin_get_activity_stream`, `garmin_query`, `garmin_show_chart` and `garmin_sync`. See [docs/tools.md](docs/tools.md) for each tool and [docs/data.md](docs/data.md) for what's stored, every metric and its unit, and what's never shared. Missing data is reported as missing, never as zero.
 
 ## Troubleshooting
 

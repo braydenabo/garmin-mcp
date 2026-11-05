@@ -3,6 +3,7 @@
 import difflib
 from pathlib import Path
 
+from garmin_connect_personal_mcp import metrics
 from garmin_connect_personal_mcp.config import DataPaths
 from garmin_connect_personal_mcp.contract import contract_json, tools_contract, tools_markdown
 
@@ -57,3 +58,9 @@ def test_every_tool_is_prefixed_and_described(tmp_path: Path) -> None:
             "open_world_hint",
         }
         assert tool["output_schema"], f"{tool['name']} needs a typed output"
+
+
+def test_data_doc_lists_every_metric() -> None:
+    text = (ROOT / "docs" / "data.md").read_text(encoding="utf-8")
+    for name, metric in metrics.METRICS.items():
+        assert f"| `{name}` | {metric.unit} | {metric.description} |" in text, name
