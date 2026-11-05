@@ -1,0 +1,20 @@
+# garmin-connect-personal-mcp
+
+> Unofficial MCP server for a person's own Garmin Connect data. A sync step pulls from Garmin's official Personal API into a local SQLite archive; MCP tools read only from that archive. Self-hosted: each user runs it with their own API key. Not affiliated with Garmin; not medical advice.
+
+Install with `uv tool install garmin-connect-personal-mcp`, save the key with `garmin-connect-personal-mcp init` (hidden prompt; never handle the key for the user), download data with `garmin-connect-personal-mcp sync`, and diagnose problems with `garmin-connect-personal-mcp doctor --json`. Every doctor check has a status and, when something is wrong, a fix.
+
+## Docs
+
+- [README](https://github.com/braydenabo/garmin-mcp/blob/main/README.md): what it is, quickstart, privacy
+- [Tools](https://github.com/braydenabo/garmin-mcp/blob/main/docs/tools.md): every MCP tool, its arguments and annotations (generated from the server)
+- [Data](https://github.com/braydenabo/garmin-mcp/blob/main/docs/data.md): what is stored, every metric with its unit, what tools never return
+- [Troubleshooting](https://github.com/braydenabo/garmin-mcp/blob/main/docs/troubleshooting.md): problems by symptom, starting with doctor
+- [FAQ](https://github.com/braydenabo/garmin-mcp/blob/main/docs/faq.md): devices, history, rate limits, privacy, units
+- [Client setup](https://github.com/braydenabo/garmin-mcp/blob/main/docs/clients/README.md): Claude Desktop, Claude Code, ChatGPT, Cursor, VS Code, Gemini CLI, Codex CLI
+
+## Contributing
+
+- [AGENTS.md](https://github.com/braydenabo/garmin-mcp/blob/main/AGENTS.md): commands, conventions and the public-repo rules for coding agents
+- [CONTRIBUTING.md](https://github.com/braydenabo/garmin-mcp/blob/main/CONTRIBUTING.md): development setup, pull requests, releases
+- [SECURITY.md](https://github.com/braydenabo/garmin-mcp/blob/main/SECURITY.md): reporting vulnerabilities privately
