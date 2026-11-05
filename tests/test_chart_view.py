@@ -48,6 +48,7 @@ def render(fn: str, data: Any) -> str:
         [str(NODE), "-e", "var module = {exports: {}};" + code],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=True,
     )
     return result.stdout
@@ -81,6 +82,7 @@ def render_with(fn: str, *args: Any) -> str:
         [str(NODE), "-e", "var module = {exports: {}};" + code],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=True,
     )
     return result.stdout
@@ -145,7 +147,7 @@ def test_number_formatting() -> None:
             + "process.stdout.write(p.n + '|' + p.u);"
         )
         return subprocess.run(
-            [str(NODE), "-e", code], capture_output=True, text=True, check=True
+            [str(NODE), "-e", code], capture_output=True, text=True, encoding="utf-8", check=True
         ).stdout
 
     assert parts(8.3, "hours") == "8h 18m|"
@@ -272,7 +274,9 @@ assert.equal(read(summary), null);
 assert.equal(read({_meta: {"garmin/chart": {labels: []}}}), null);
 """
     )
-    subprocess.run([str(NODE), "-e", code], capture_output=True, text=True, check=True)
+    subprocess.run(
+        [str(NODE), "-e", code], capture_output=True, text=True, encoding="utf-8", check=True
+    )
 
 
 @node
@@ -313,7 +317,9 @@ assert.ok(!app.innerHTML.includes("No chart data"));
         + ";\n"
         + harness
     )
-    subprocess.run([str(NODE), "-e", code], capture_output=True, text=True, check=True)
+    subprocess.run(
+        [str(NODE), "-e", code], capture_output=True, text=True, encoding="utf-8", check=True
+    )
 
 
 @node
@@ -393,6 +399,7 @@ check().catch(error => {console.error(error); process.exitCode = 1;});
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
     )
     assert result.returncode == 0, result.stderr
@@ -457,4 +464,6 @@ check().catch(error => {console.error(error); process.exitCode = 1;});
         + ";\n"
         + harness
     )
-    subprocess.run([str(NODE), "-e", code], capture_output=True, text=True, check=True)
+    subprocess.run(
+        [str(NODE), "-e", code], capture_output=True, text=True, encoding="utf-8", check=True
+    )
