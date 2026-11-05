@@ -1,15 +1,16 @@
 name: CI
 
 # Pushes and PRs run a quick check: Linux with the oldest and newest supported Python.
-# The full OS x Python matrix runs weekly, on release tags, and on demand (Actions tab).
+# The full OS x Python matrix runs weekly, on release tags (called from release.yml),
+# and on demand (Actions tab).
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

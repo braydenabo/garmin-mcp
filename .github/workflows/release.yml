@@ -1,0 +1,96 @@
+name: Release
+
+# Pushing a tag like v0.2.0 runs the full CI matrix, builds the package, publishes it to
+# PyPI with Trusted Publishing (no API token stored in GitHub), and creates a GitHub
+# release with the changelog section and the built files.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - name: Build sdist and wheel
+        run: uv build
+      - name: Check the tag matches the package version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ ! -f "dist/garmin_connect_personal_mcp-${version}.tar.gz" ]; then
+            echo "Tag ${GITHUB_REF_NAME} doesn't match the version in src/garmin_connect_personal_mcp/__init__.py:"
+            ls dist
+            exit 1
+          fi
+      - name: Check the changelog has a section for this version
+        run: grep -q "^## \[${GITHUB_REF_NAME#v}\]" CHANGELOG.md || { echo "Add a '## [${GITHUB_REF_NAME#v}]' section to CHANGELOG.md."; exit 1; }
+      - name: Smoke test the wheel
+        run: uvx --from dist/*.whl garmin-connect-personal-mcp --version
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  pypi:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/garmin-connect-personal-mcp/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
+
+  github-release:
+    name: GitHub release
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG.md has no section for ${version}."
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes-file notes.md
