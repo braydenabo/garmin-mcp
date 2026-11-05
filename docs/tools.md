@@ -35,6 +35,18 @@ One activity's heart rate, pace or speed, cadence, power, altitude and distance 
 | `start_minute` | number | default `0` | Elapsed minute to start from; 0 for the start |
 | `end_minute` | number | default `0` | Elapsed minute to stop at; 0 for the end |
 
+## `garmin_get_baseline`
+
+One day's value of a metric against the user's usual level over the days before it: baseline mean, median and usual range (mean +/- 1 SD), and the day's difference, z-score, percentile and below/within/above. Default: today vs the previous 30 days.
+
+*read-only, local only*
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `metric` | one of `awake_minutes`, `body_battery_charged`, `body_battery_drained`, `body_battery_high`, `body_battery_low`, `calories_active_kcal`, … | required | Metric name; see garmin_describe_data |
+| `date` | string | default `"today"` | YYYY-MM-DD, 'today' or 'yesterday' |
+| `days` | integer | default `30` | Baseline length in days before date, 7-365 |
+
 ## `garmin_get_chart_data`
 
 Widget-only: load plot points from the local archive for an already requested chart. Used when a host does not deliver component-only result metadata. Does not create another chart, sync data, or contact Garmin.

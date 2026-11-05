@@ -26,7 +26,16 @@ from mcp.server.mcpserver.resources import TextResource
 from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import BaseModel, Field
 
-from garmin_connect_personal_mcp import __version__, activities, charts, db, fit, metrics, streams
+from garmin_connect_personal_mcp import (
+    __version__,
+    activities,
+    analysis,
+    charts,
+    db,
+    fit,
+    metrics,
+    streams,
+)
 from garmin_connect_personal_mcp.config import DataPaths
 
 PROG = "garmin-connect-personal-mcp"
@@ -54,7 +63,7 @@ SYNC = ToolAnnotations(
 # Toolsets let a client load fewer tools (smaller models choose better from fewer).
 # garmin_describe_data is always on.
 TOOLSETS: dict[str, tuple[str, ...]] = {
-    "daily": ("garmin_get_day", "garmin_get_trend"),
+    "daily": ("garmin_get_day", "garmin_get_trend", "garmin_get_baseline"),
     "activities": ("garmin_list_activities", "garmin_get_activity", "garmin_get_activity_stream"),
     "sync": ("garmin_sync",),
     "charts": ("garmin_show_chart", "garmin_get_chart_data"),
@@ -222,15 +231,19 @@ def _round(value: float) -> float:
     return round(value, 2)
 
 
-def get_trend(
-    paths: DataPaths, metric: str, start: date, end: date, bucket: Literal["day", "week"]
-) -> Trend:
+def _check_metric(metric: str) -> None:
     if metric not in metrics.NUMERIC_METRICS:
         close = difflib.get_close_matches(metric, metrics.NUMERIC_METRICS, n=3)
         hint = f" Did you mean {', '.join(close)}?" if close else ""
         raise ToolError(
             f"Unknown metric {metric!r}.{hint} garmin_describe_data lists every metric."
         )
+
+
+def get_trend(
+    paths: DataPaths, metric: str, start: date, end: date, bucket: Literal["day", "week"]
+) -> Trend:
+    _check_metric(metric)
     if end < start:
         raise ToolError("end is before start.")
     days = (end - start).days + 1
@@ -280,6 +293,32 @@ def get_trend(
         ),
         days_without_data=days - len(nums),
         notes=notes,
+    )
+
+
+def get_baseline(
+    paths: DataPaths, metric: str, day: date, days: int, today: date
+) -> analysis.Baseline:
+    _check_metric(metric)
+    if not 7 <= days <= analysis.MAX_BASELINE_DAYS:
+        raise ToolError(f"days must be between 7 and {analysis.MAX_BASELINE_DAYS}.")
+    start, _ = analysis.baseline_window(day, days)
+    with open_archive(paths) as conn:
+        if conn is None:
+            raise ToolError(f"No data has been synced yet. The user can run `{PROG} sync`.")
+        points = metrics.series(conn, metric, start, day)
+    numbers = {d: float(v) for d, v in points if not isinstance(v, str)}
+    value = numbers.pop(day, None)
+    spec = metrics.METRICS[metric]
+    return analysis.compare(
+        metric,
+        spec.unit,
+        spec.description,
+        day,
+        days,
+        value,
+        [numbers[d] for d in sorted(numbers)],
+        today=today,
     )
 
 
@@ -692,6 +731,36 @@ def build_server(
         end_date = parse_date(end, now)
         start_date = parse_date(start, now) if start else end_date - timedelta(days=29)
         return get_trend(paths, metric, start_date, end_date, bucket)
+
+    @server.tool(
+        name="garmin_get_baseline",
+        title="Compare a day with the usual",
+        description=(
+            "One day's value of a metric against the user's usual level over the days before "
+            "it: baseline mean, median and usual range (mean +/- 1 SD), and the day's "
+            "difference, z-score, percentile and below/within/above. Default: today vs the "
+            "previous 30 days."
+        ),
+        annotations=READ_ONLY,
+    )
+    def garmin_get_baseline(
+        metric: Annotated[
+            str,
+            Field(
+                description="Metric name; see garmin_describe_data",
+                json_schema_extra={"enum": metrics.NUMERIC_METRICS},
+            ),
+        ],
+        date: Annotated[str, Field(description="YYYY-MM-DD, 'today' or 'yesterday'")] = "today",
+        days: Annotated[
+            int,
+            Field(
+                description=f"Baseline length in days before date, 7-{analysis.MAX_BASELINE_DAYS}"
+            ),
+        ] = analysis.DEFAULT_BASELINE_DAYS,
+    ) -> analysis.Baseline:
+        now = today()
+        return get_baseline(paths, metric, parse_date(date, now), days, now)
 
     @server.tool(
         name="garmin_list_activities",

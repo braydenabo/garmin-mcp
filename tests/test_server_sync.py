@@ -116,6 +116,7 @@ def test_toolsets_limit_tools() -> None:
         "garmin_describe_data",
         "garmin_get_day",
         "garmin_get_trend",
+        "garmin_get_baseline",
     }
     assert tool_names(toolsets=()) == {"garmin_describe_data"}
 
