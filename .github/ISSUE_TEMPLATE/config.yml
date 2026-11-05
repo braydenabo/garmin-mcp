@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Troubleshooting guide
+  - name: Setup help and troubleshooting
     url: https://github.com/braydenabo/garmin-mcp/blob/main/docs/troubleshooting.md
-    about: Most problems are solved here. Start with `garmin-connect-personal-mcp doctor`.
-  - name: Setup help and questions
-    url: https://github.com/braydenabo/garmin-mcp/discussions
-    about: Ask how to install or connect a client, or anything else that isn't a bug.
+    about: Install, connect an app, or fix a problem. Start with `garmin-connect-personal-mcp doctor`.
+  - name: Questions (FAQ)
+    url: https://github.com/braydenabo/garmin-mcp/blob/main/docs/faq.md
+    about: Devices, history, rate limits, privacy, units and uninstalling.
   - name: Report a security vulnerability
     url: https://github.com/braydenabo/garmin-mcp/security/advisories/new
     about: Please report security problems privately, not as a public issue.
