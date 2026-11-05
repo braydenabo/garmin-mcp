@@ -4,8 +4,10 @@ import argparse
 import getpass
 import ipaddress
 import os
+import shlex
 import sys
 from collections.abc import Sequence
+from datetime import date
 from pathlib import Path
 
 from garmin_connect_personal_mcp import __version__, clients, config, db, doctor, schedule
@@ -160,6 +162,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="apply the change (JSON configs are backed up first); without it, only show it",
     )
+
+    demo = commands.add_parser(
+        "demo",
+        help="create a made-up archive to try the server without a Garmin account",
+        description=(
+            "Write about four months of made-up data, shaped like Garmin's, into a new folder. "
+            "It never touches your real archive. Point the server at it with "
+            "GARMIN_MCP_DATA_DIR."
+        ),
+    )
+    demo.add_argument("folder", type=Path, help="a new or empty folder for the demo archive")
+    demo.add_argument(
+        "--days", type=int, default=120, help="how many days of data (14-3650, default 120)"
+    )
+    demo.add_argument(
+        "--end", default="", metavar="YYYY-MM-DD", help="last day of data (default today)"
+    )
+    demo.add_argument("--seed", type=int, default=7, help=argparse.SUPPRESS)
 
     serve = commands.add_parser(
         "serve",
@@ -337,6 +357,32 @@ def _schedule_install(
     return 0
 
 
+def cmd_demo(args: argparse.Namespace) -> int:
+    from garmin_connect_personal_mcp import demo
+
+    try:
+        end = date.fromisoformat(args.end) if args.end else None
+    except ValueError:
+        print("Error: --end must be a date, YYYY-MM-DD.", file=sys.stderr)
+        return 2
+    folder = args.folder.expanduser().absolute()
+    try:
+        made = demo.build(config.DataPaths(folder), days=args.days, end=end, seed=args.seed)
+    except demo.DemoError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    print(
+        f"Demo archive written to {folder}: {made.worn_days} days of data from {made.first_date} "
+        f"to {made.last_date}, and {made.activities} activities. All of it is made up."
+    )
+    print("Try it with any MCP client by running the server against it, read-only:")
+    print(f"  {config.DATA_DIR_ENV_VAR}={shlex.quote(str(folder))} {PROG} serve --read-only")
+    print(
+        f"To add it to a client, set {config.DATA_DIR_ENV_VAR} the same way before install-client."
+    )
+    return 0
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     checks = doctor.run_checks(config.data_paths(), offline=args.offline)
     redact = doctor.Redactor(Path.home(), doctor.known_secrets())
@@ -472,6 +518,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             check=getattr(args, "check", False),
             client=getattr(args, "client", None),
         )
+    if args.command == "demo":
+        return cmd_demo(args)
     if args.command == "serve":
         return cmd_serve(args)
     if args.command == "install-client":

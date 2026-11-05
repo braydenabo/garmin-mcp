@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Added
+
+- `demo FOLDER`: writes about four months of made-up data, shaped like Garmin's, with a FIT file per activity, so the server can be tried without a Garmin account. It includes weekend sleep-ins, a training block, a sick spell and days without the watch. It refuses any folder that isn't new or empty, and marks the folder with `DEMO.json`.
+
 ## [0.5.0] - 2026-11-05
 
 ### Added
