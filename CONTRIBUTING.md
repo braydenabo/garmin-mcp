@@ -46,6 +46,7 @@ The pre-commit hooks scan for secrets and block database, FIT and archive files.
 2. Move the **Unreleased** entries in `CHANGELOG.md` under a new `## [X.Y.Z] - YYYY-MM-DD` heading, and update the links at the bottom.
 3. Set `__version__` in `src/garmin_connect_personal_mcp/__init__.py` to `X.Y.Z`.
 4. Check `uv run python scripts/gen_tools_doc.py` leaves no diff.
+   If tools or their descriptions changed, run the [evals](evals/README.md) and add the results to the release notes.
 5. Commit, then tag and push:
 
    ```bash
