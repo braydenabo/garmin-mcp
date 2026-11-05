@@ -40,7 +40,11 @@ def trigger(backend: str, task_env: dict[str, str]) -> None:
         target = f"gui/{os.getuid()}/{schedule.LAUNCHD_LABEL}"
         subprocess.run(["launchctl", "kickstart", target], check=True)
     elif backend == "systemd":
-        subprocess.run(["systemctl", "--user", "start", f"{schedule.NAME}.service"], check=True)
+        # A oneshot service reports failure when its command exits non-zero, and this
+        # sync is meant to fail (no key). The log check below is what counts.
+        service = f"{schedule.NAME}.service"
+        subprocess.run(["systemctl", "--user", "start", service], check=False)
+        subprocess.run(["systemctl", "--user", "status", "--no-pager", service], check=False)
     elif backend == "cron":
         lines = subprocess.run(
             ["crontab", "-l"], capture_output=True, text=True, check=True
