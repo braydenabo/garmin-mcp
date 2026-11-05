@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Fixed
 
+- `serve` now loads every toolset by default. In 0.3.0 its built-in default list left out the new `query` toolset, so `garmin_query` and `garmin://schema` only appeared with `--toolsets` including `query`.
 - `chatgpt-background stop` now waits until macOS has finished stopping the tunnel agent, and `start` retries briefly while macOS is still releasing it, so stopping and immediately starting again no longer fails.
 
 ## [0.3.0] - 2026-11-05

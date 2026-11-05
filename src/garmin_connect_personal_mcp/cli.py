@@ -188,10 +188,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     serve.add_argument(
         "--toolsets",
-        default=os.environ.get("GARMIN_MCP_TOOLSETS", "daily,activities,sync,charts"),
+        default=os.environ.get("GARMIN_MCP_TOOLSETS", ""),
         metavar="LIST",
         help="comma-separated: daily, activities, query, sync, charts (GARMIN_MCP_TOOLSETS); "
-        "garmin_describe_data is always on",
+        "default all. garmin_describe_data is always on",
     )
     return parser
 
@@ -400,7 +400,7 @@ def cmd_install_client(args: argparse.Namespace) -> int:
 def cmd_serve(args: argparse.Namespace) -> int:
     # Imported here so the rest of the CLI starts fast and doesn't need the MCP SDK loaded.
     from garmin_connect_personal_mcp import autosync
-    from garmin_connect_personal_mcp.server import build_server
+    from garmin_connect_personal_mcp.server import TOOLSETS, build_server
 
     bearer_token = os.environ.get("GARMIN_MCP_HTTP_BEARER_TOKEN", "")
     if args.http:
@@ -419,7 +419,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
             )
             return 2
 
-    toolsets = tuple(t.strip() for t in args.toolsets.split(",") if t.strip())
+    # Empty means every toolset, so a new toolset can't be left out of a hardcoded default.
+    toolsets = tuple(t.strip() for t in args.toolsets.split(",") if t.strip()) or tuple(TOOLSETS)
     paths = config.data_paths()
     try:
         server = build_server(paths, toolsets=toolsets, read_only=args.read_only)

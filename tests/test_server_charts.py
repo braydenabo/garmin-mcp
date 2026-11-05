@@ -215,9 +215,12 @@ def test_charts_toolset_can_be_turned_off() -> None:
     assert names == {"garmin_describe_data", "garmin_show_chart", "garmin_get_chart_data"}
 
 
-def test_serve_includes_charts_by_default(monkeypatch: Any) -> None:
+def test_serve_loads_every_toolset_by_default(monkeypatch: Any) -> None:
+    """No hardcoded default list: an empty --toolsets means all, charts and query included.
+
+    tests/test_protocol.py checks the tools a real `serve` process lists.
+    """
     from garmin_connect_personal_mcp import cli
 
     monkeypatch.delenv("GARMIN_MCP_TOOLSETS", raising=False)
-    args = cli.build_parser().parse_args(["serve"])
-    assert set(args.toolsets.split(",")) == {"daily", "activities", "sync", "charts"}
+    assert cli.build_parser().parse_args(["serve"]).toolsets == ""
