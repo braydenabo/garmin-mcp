@@ -34,6 +34,7 @@ class Check:
     summary: str
     fix: str | None = None
     details: list[str] = field(default_factory=list)
+    help: str | None = None  # the troubleshooting section for this problem
 
 
 class Redactor:
@@ -57,6 +58,7 @@ class Redactor:
             summary=self(check.summary),
             fix=None if check.fix is None else self(check.fix),
             details=[self(d) for d in check.details],
+            help=check.help,
         )
 
 
@@ -266,6 +268,33 @@ def local_checks(paths: config.DataPaths) -> list[Check]:
     ]
 
 
+TROUBLESHOOTING_URL = "https://github.com/braydenabo/garmin-mcp/blob/main/docs/troubleshooting.md"
+_SECTIONS = {
+    "API key": "api-key",
+    "Data folder": "the-archive",
+    "Archive": "the-archive",
+    "Contents": "no-data-or-data-is-missing",
+    "Sync errors": "sync-errors",
+    "Daily sync": "daily-sync-isnt-running",
+}
+
+
+def help_link(check: Check) -> str | None:
+    """The troubleshooting section for a check that needs attention, or None."""
+    if check.status == "ok" or (check.status == "info" and check.fix is None):
+        return None
+    if check.name == "Garmin access":
+        if "HTTP 429" in check.summary:
+            section = "rate-limited"
+        elif "HTTP 401" in check.summary:
+            section = "api-key"
+        else:
+            section = "cant-reach-garmin"
+    else:
+        section = _SECTIONS.get(check.name, "start-here-run-doctor")
+    return f"{TROUBLESHOOTING_URL}#{section}"
+
+
 def run_checks(
     paths: config.DataPaths,
     *,
@@ -283,6 +312,8 @@ def run_checks(
     else:
         checks.insert(2, check_garmin(api_factory))
     checks.append(check_schedule(backend_factory, paths))
+    for check in checks:
+        check.help = help_link(check)
     return checks
 
 
@@ -317,6 +348,8 @@ def render_text(checks: list[Check], marks: dict[str, str] = MARKS) -> str:
         lines += [f"    - {detail}" for detail in check.details]
         if check.fix and check.status in ("warn", "fail", "info"):
             lines.append(f"    Fix: {check.fix}")
+        if check.help and check.status in ("warn", "fail"):
+            lines.append(f"    More: {check.help}")
     problems = sum(c.status == "fail" for c in checks)
     warnings = sum(c.status == "warn" for c in checks)
     lines.append("")

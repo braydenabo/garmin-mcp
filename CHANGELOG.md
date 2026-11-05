@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Added
+
+- `docs/troubleshooting.md`, organised by symptom, and `docs/faq.md`: devices, history, rate limits, privacy, units and uninstalling.
+- `doctor` links each problem to its troubleshooting section (`More: ...` in the report, `help` in `--json`).
+- `llms.txt`, a short index of the docs for AI agents reading the repository.
+
 ## [0.4.0] - 2026-11-05
 
 ### Fixed
