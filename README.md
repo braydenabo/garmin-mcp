@@ -88,6 +88,8 @@ garmin-connect-personal-mcp doctor
 
 It checks your API key, Garmin access, the local archive, recent sync errors and the daily schedule, and says how to fix anything wrong. The report contains no API key, health data or home folder path, so you can paste it into an issue as is. Add `--offline` to skip contacting Garmin.
 
+[docs/troubleshooting.md](docs/troubleshooting.md) covers problems by symptom, and [docs/faq.md](docs/faq.md) answers common questions: supported devices, how far back your history goes, rate limits, and who sees your data.
+
 ## Privacy
 
 - **You run it yourself, with your own key.** There is no hosted service, and your data never passes through this project.
