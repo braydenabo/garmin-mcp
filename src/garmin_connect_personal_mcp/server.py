@@ -11,6 +11,7 @@ import difflib
 import hashlib
 import sqlite3
 import sys
+import zipfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
@@ -25,7 +26,7 @@ from mcp.server.mcpserver.resources import TextResource
 from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import BaseModel, Field
 
-from garmin_connect_personal_mcp import __version__, activities, charts, db, metrics
+from garmin_connect_personal_mcp import __version__, activities, charts, db, fit, metrics, streams
 from garmin_connect_personal_mcp.config import DataPaths
 
 PROG = "garmin-connect-personal-mcp"
@@ -54,7 +55,7 @@ SYNC = ToolAnnotations(
 # garmin_describe_data is always on.
 TOOLSETS: dict[str, tuple[str, ...]] = {
     "daily": ("garmin_get_day", "garmin_get_trend"),
-    "activities": ("garmin_list_activities", "garmin_get_activity"),
+    "activities": ("garmin_list_activities", "garmin_get_activity", "garmin_get_activity_stream"),
     "sync": ("garmin_sync",),
     "charts": ("garmin_show_chart", "garmin_get_chart_data"),
 }
@@ -334,6 +335,55 @@ def get_activity(paths: DataPaths, activity_id: int) -> activities.ActivityDetai
             f"No activity {activity_id} in the archive. garmin_list_activities shows the IDs."
         )
     return found
+
+
+def get_activity_stream(
+    paths: DataPaths,
+    activity_id: int,
+    interval_seconds: int = 0,
+    start_minute: float = 0,
+    end_minute: float = 0,
+) -> streams.Stream:
+    with open_archive(paths) as conn:
+        if conn is None:
+            raise ToolError(f"No data has been synced yet. The user can run `{PROG} sync`.")
+        row = conn.execute(
+            "SELECT activity_type, fit_path FROM activities WHERE activity_id = ?", (activity_id,)
+        ).fetchone()
+    if row is None:
+        raise ToolError(
+            f"No activity {activity_id} in the archive. garmin_list_activities shows the IDs."
+        )
+    activity_type, fit_path = row
+    if fit_path is None:
+        raise ToolError(
+            f"The FIT file for activity {activity_id} isn't downloaded yet. Call garmin_sync to "
+            "fetch it; garmin_get_activity has the summary meanwhile."
+        )
+    path = paths.fit_dir / str(fit_path)
+    if path.name != fit_path or not path.is_file():
+        raise ToolError(
+            f"The FIT file for activity {activity_id} is missing from the archive folder, so its "
+            "samples can't be read. garmin_get_activity still has the summary."
+        )
+    try:
+        samples = fit.read_fit_file(path)
+    except (fit.FitError, OSError, zipfile.BadZipFile) as exc:
+        raise ToolError(
+            f"Couldn't read the FIT file for activity {activity_id}: {exc} "
+            "garmin_get_activity still has the summary."
+        ) from None
+    try:
+        return streams.build(
+            activity_id,
+            activity_type,
+            samples,
+            interval_seconds=interval_seconds,
+            start_minute=start_minute,
+            end_minute=end_minute,
+        )
+    except ValueError as exc:
+        raise ToolError(str(exc)) from None
 
 
 class SyncResult(BaseModel):
@@ -684,6 +734,32 @@ def build_server(
         activity_id: Annotated[int, Field(description="From garmin_list_activities")],
     ) -> activities.ActivityDetail:
         return get_activity(paths, activity_id)
+
+    @server.tool(
+        name="garmin_get_activity_stream",
+        title="Get an activity over time",
+        description=(
+            "One activity's heart rate, pace or speed, cadence, power, altitude and distance "
+            "over elapsed time, averaged into even intervals (about 300 points by default). "
+            "For pacing, drift, intervals and climbs. Zoom in with start_minute/end_minute. "
+            "No GPS."
+        ),
+        annotations=READ_ONLY,
+    )
+    def garmin_get_activity_stream(
+        activity_id: Annotated[int, Field(description="From garmin_list_activities")],
+        interval_seconds: Annotated[
+            int,
+            Field(description=f"Seconds per point, 1-{streams.MAX_INTERVAL_SECONDS}; 0 picks one"),
+        ] = 0,
+        start_minute: Annotated[
+            float, Field(description="Elapsed minute to start from; 0 for the start")
+        ] = 0,
+        end_minute: Annotated[
+            float, Field(description="Elapsed minute to stop at; 0 for the end")
+        ] = 0,
+    ) -> streams.Stream:
+        return get_activity_stream(paths, activity_id, interval_seconds, start_minute, end_minute)
 
     @server.tool(
         name="garmin_sync",
