@@ -63,7 +63,12 @@ SYNC = ToolAnnotations(
 # Toolsets let a client load fewer tools (smaller models choose better from fewer).
 # garmin_describe_data is always on.
 TOOLSETS: dict[str, tuple[str, ...]] = {
-    "daily": ("garmin_get_day", "garmin_get_trend", "garmin_get_baseline"),
+    "daily": (
+        "garmin_get_day",
+        "garmin_get_trend",
+        "garmin_get_baseline",
+        "garmin_compare_periods",
+    ),
     "activities": ("garmin_list_activities", "garmin_get_activity", "garmin_get_activity_stream"),
     "sync": ("garmin_sync",),
     "charts": ("garmin_show_chart", "garmin_get_chart_data"),
@@ -320,6 +325,29 @@ def get_baseline(
         [numbers[d] for d in sorted(numbers)],
         today=today,
     )
+
+
+def compare_periods(
+    paths: DataPaths, metric: str, period: tuple[date, date], reference: tuple[date, date]
+) -> analysis.PeriodComparison:
+    _check_metric(metric)
+    for name, (start, end) in (("start/end", period), ("compare_start/compare_end", reference)):
+        if end < start:
+            raise ToolError(f"{name}: the end is before the start.")
+        if (end - start).days + 1 > analysis.MAX_PERIOD_DAYS:
+            raise ToolError(f"{name}: each period can be at most {analysis.MAX_PERIOD_DAYS} days.")
+    with open_archive(paths) as conn:
+        if conn is None:
+            raise ToolError(f"No data has been synced yet. The user can run `{PROG} sync`.")
+
+        def values(start: date, end: date) -> list[float]:
+            points = metrics.series(conn, metric, start, end)
+            return [float(v) for _, v in points if not isinstance(v, str)]
+
+        a = (*period, values(*period))
+        b = (*reference, values(*reference))
+    spec = metrics.METRICS[metric]
+    return analysis.compare_periods(metric, spec.unit, spec.description, a, b)
 
 
 MAX_PAGE_SIZE = 100
@@ -761,6 +789,55 @@ def build_server(
     ) -> analysis.Baseline:
         now = today()
         return get_baseline(paths, metric, parse_date(date, now), days, now)
+
+    @server.tool(
+        name="garmin_compare_periods",
+        title="Compare two periods",
+        description=(
+            "One metric in two date ranges side by side: days with data, mean, median, spread, "
+            "min and max for each, and the difference in means (absolute and %). For questions "
+            "like 'October vs September'. Default: last 30 days vs the 30 before."
+        ),
+        annotations=READ_ONLY,
+    )
+    def garmin_compare_periods(
+        metric: Annotated[
+            str,
+            Field(
+                description="Metric name; see garmin_describe_data",
+                json_schema_extra={"enum": metrics.NUMERIC_METRICS},
+            ),
+        ],
+        start: Annotated[
+            str, Field(description="Period start: YYYY-MM-DD. Default: 29 days before end")
+        ] = "",
+        end: Annotated[
+            str, Field(description="Period end: YYYY-MM-DD, 'today' or 'yesterday'")
+        ] = "today",
+        compare_start: Annotated[
+            str,
+            Field(description="Comparison start: YYYY-MM-DD. Default: same length as the period"),
+        ] = "",
+        compare_end: Annotated[
+            str, Field(description="Comparison end. Default: the day before start")
+        ] = "",
+    ) -> analysis.PeriodComparison:
+        now = today()
+        end_date = parse_date(end, now)
+        start_date = parse_date(start, now) if start else end_date - timedelta(days=29)
+        length = (end_date - start_date).days + 1
+        if compare_end:
+            ref_end = parse_date(compare_end, now)
+        elif compare_start:
+            ref_end = parse_date(compare_start, now) + timedelta(days=length - 1)
+        else:
+            ref_end = start_date - timedelta(days=1)
+        ref_start = (
+            parse_date(compare_start, now)
+            if compare_start
+            else ref_end - timedelta(days=length - 1)
+        )
+        return compare_periods(paths, metric, (start_date, end_date), (ref_start, ref_end))
 
     @server.tool(
         name="garmin_list_activities",

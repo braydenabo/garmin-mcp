@@ -139,3 +139,121 @@ def test_tool_errors(args: dict[str, Any], message: str) -> None:
 def test_tool_without_archive_suggests_sync() -> None:
     error, _, text = call({"metric": "sleep_hours"})
     assert error and "sync" in text
+
+
+# --- comparing periods
+
+MAR = (date(2026, 3, 1), date(2026, 3, 31))
+FEB = (date(2026, 2, 1), date(2026, 2, 28))
+
+
+Dates = tuple[date, date]
+
+
+def periods(
+    a: list[float], b: list[float], *, a_dates: Dates = MAR, b_dates: Dates = FEB
+) -> analysis.PeriodComparison:
+    return analysis.compare_periods("steps", "steps", "Steps", (*a_dates, a), (*b_dates, b))
+
+
+def test_compare_periods_stats_and_difference() -> None:
+    c = periods([8000.0, 10000.0, 12000.0] * 10, [8000.0] * 28)
+    assert c.period.mean == 10000 and c.period.median == 10000 and c.period.days == 31
+    assert c.period.days_with_data == 30 and c.period.min == 8000 and c.period.max == 12000
+    assert c.compare_period.mean == 8000 and c.compare_period.std_dev == 0
+    assert c.difference == 2000 and c.difference_pct == 25
+    assert c.notes == [
+        "Means are of days with data; days without data are left out, not counted as 0."
+    ]
+
+
+def test_compare_periods_with_an_empty_period() -> None:
+    c = periods([9000.0] * 20, [])
+    assert c.difference is None and c.compare_period.mean is None
+    assert "No steps data in compare_period" in c.notes[0] and "garmin_sync" in c.notes[0]
+
+
+def test_compare_periods_flags_sparse_uneven_and_overlapping() -> None:
+    c = periods([9000.0] * 3, [9000.0] * 28, b_dates=(date(2026, 3, 1), date(2026, 3, 28)))
+    joined = " ".join(c.notes)
+    assert "only 3 days" in joined and "rough" in joined
+    assert "Coverage differs" in joined
+    assert "overlap" in joined
+    assert c.period.std_dev == 0 and periods([1.0, 2.0], [1.0]).period.std_dev is None
+
+
+def call_compare(args: dict[str, Any]) -> tuple[bool, Any, str]:
+    async def go() -> tuple[bool, Any, str]:
+        server = build_server(config.data_paths(), today=lambda: TODAY)
+        async with Client(server) as client:
+            result = await client.call_tool("garmin_compare_periods", args)
+            text = result.content[0].text  # type: ignore[union-attr]
+            return result.is_error, result.structured_content, text
+
+    return anyio.run(go)
+
+
+def test_compare_tool_defaults_to_last_30_days_vs_the_30_before() -> None:
+    seed_sleep({TODAY - timedelta(days=n): (7.0 if n < 30 else 6.0) for n in range(0, 60)})
+    error, result, text = call_compare({"metric": "sleep_hours"})
+    assert not error, text
+    assert json.loads(text) == result
+    assert (result["period"]["start"], result["period"]["end"]) == ("2026-03-02", "2026-03-31")
+    assert result["compare_period"]["start"] == "2026-01-31"
+    assert result["compare_period"]["end"] == "2026-03-01"
+    assert result["difference"] == 1.0
+
+
+def test_compare_tool_explicit_and_partial_ranges() -> None:
+    seed_sleep({TODAY - timedelta(days=n): 7.0 for n in range(0, 90)})
+    _, result, _ = call_compare(
+        {
+            "metric": "sleep_hours",
+            "start": "2026-03-01",
+            "end": "2026-03-31",
+            "compare_start": "2026-02-01",
+            "compare_end": "2026-02-28",
+        }
+    )
+    assert result["period"]["days"] == 31 and result["compare_period"]["days"] == 28
+    _, result, _ = call_compare(
+        {
+            "metric": "sleep_hours",
+            "start": "2026-03-01",
+            "end": "2026-03-10",
+            "compare_start": "2026-01-01",
+        }
+    )
+    assert result["compare_period"]["end"] == "2026-01-10"
+    _, result, _ = call_compare(
+        {
+            "metric": "sleep_hours",
+            "start": "2026-03-01",
+            "end": "2026-03-10",
+            "compare_end": "2026-01-10",
+        }
+    )
+    assert result["compare_period"]["start"] == "2026-01-01"
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        ({"metric": "step"}, "Did you mean"),
+        ({"metric": "steps", "start": "2026-03-10", "end": "2026-03-01"}, "start/end"),
+        (
+            {"metric": "steps", "compare_start": "2026-03-10", "compare_end": "2026-03-01"},
+            "compare_start/compare_end",
+        ),
+        ({"metric": "steps", "start": "2020-01-01"}, "at most 731 days"),
+    ],
+)
+def test_compare_tool_errors(args: dict[str, Any], message: str) -> None:
+    seed_sleep({})
+    error, _, text = call_compare(args)
+    assert error and message in text
+
+
+def test_compare_tool_without_archive_suggests_sync() -> None:
+    error, _, text = call_compare({"metric": "steps"})
+    assert error and "sync" in text

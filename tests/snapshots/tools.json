@@ -6,6 +6,246 @@
       "open_world_hint": false,
       "read_only_hint": true
     },
+    "description": "One metric in two date ranges side by side: days with data, mean, median, spread, min and max for each, and the difference in means (absolute and %). For questions like 'October vs September'. Default: last 30 days vs the 30 before.",
+    "input_schema": {
+      "properties": {
+        "compare_end": {
+          "default": "",
+          "description": "Comparison end. Default: the day before start",
+          "title": "Compare End",
+          "type": "string"
+        },
+        "compare_start": {
+          "default": "",
+          "description": "Comparison start: YYYY-MM-DD. Default: same length as the period",
+          "title": "Compare Start",
+          "type": "string"
+        },
+        "end": {
+          "default": "today",
+          "description": "Period end: YYYY-MM-DD, 'today' or 'yesterday'",
+          "title": "End",
+          "type": "string"
+        },
+        "metric": {
+          "description": "Metric name; see garmin_describe_data",
+          "enum": [
+            "awake_minutes",
+            "body_battery_charged",
+            "body_battery_drained",
+            "body_battery_high",
+            "body_battery_low",
+            "calories_active_kcal",
+            "calories_total_kcal",
+            "deep_sleep_minutes",
+            "distance_km",
+            "floors_climbed",
+            "hrv_baseline_high_ms",
+            "hrv_baseline_low_ms",
+            "hrv_last_night_ms",
+            "hrv_weekly_avg_ms",
+            "intensity_minutes_moderate",
+            "intensity_minutes_vigorous",
+            "light_sleep_minutes",
+            "max_hr_bpm",
+            "min_hr_bpm",
+            "rem_sleep_minutes",
+            "respiration_avg_brpm",
+            "resting_hr_bpm",
+            "sleep_avg_hr_bpm",
+            "sleep_avg_respiration_brpm",
+            "sleep_hours",
+            "sleep_score",
+            "step_goal",
+            "steps",
+            "stress_avg",
+            "stress_max"
+          ],
+          "title": "Metric",
+          "type": "string"
+        },
+        "start": {
+          "default": "",
+          "description": "Period start: YYYY-MM-DD. Default: 29 days before end",
+          "title": "Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric"
+      ],
+      "title": "garmin_compare_periodsArguments",
+      "type": "object"
+    },
+    "meta": {},
+    "name": "garmin_compare_periods",
+    "output_schema": {
+      "$defs": {
+        "PeriodStats": {
+          "properties": {
+            "days": {
+              "title": "Days",
+              "type": "integer"
+            },
+            "days_with_data": {
+              "title": "Days With Data",
+              "type": "integer"
+            },
+            "end": {
+              "title": "End",
+              "type": "string"
+            },
+            "max": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max"
+            },
+            "mean": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mean"
+            },
+            "median": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Median"
+            },
+            "min": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min"
+            },
+            "start": {
+              "title": "Start",
+              "type": "string"
+            },
+            "std_dev": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Needs at least 3 days with data",
+              "title": "Std Dev"
+            }
+          },
+          "required": [
+            "start",
+            "end",
+            "days",
+            "days_with_data",
+            "mean",
+            "median",
+            "std_dev",
+            "min",
+            "max"
+          ],
+          "title": "PeriodStats",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "compare_period": {
+          "$ref": "#/$defs/PeriodStats",
+          "description": "The period it is compared with"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "difference": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "period mean - compare_period mean",
+          "title": "Difference"
+        },
+        "difference_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "difference as a percent of compare_period",
+          "title": "Difference Pct"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "period": {
+          "$ref": "#/$defs/PeriodStats",
+          "description": "The period asked about"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric",
+        "unit",
+        "description",
+        "period",
+        "compare_period",
+        "difference",
+        "difference_pct",
+        "notes"
+      ],
+      "title": "PeriodComparison",
+      "type": "object"
+    },
+    "title": "Compare two periods"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
     "description": "What's in the archive: each dataset's date coverage and last sync, every metric with its unit, and activity counts. Call this first.",
     "input_schema": {
       "properties": {},

@@ -147,3 +147,95 @@ def compare(
         position=position,
         notes=notes,
     )
+
+
+MAX_PERIOD_DAYS = 731
+UNEVEN_COVERAGE = 0.5  # one period's share of days with data under half the other's
+
+
+class PeriodStats(BaseModel):
+    start: str
+    end: str
+    days: int
+    days_with_data: int
+    mean: float | None
+    median: float | None
+    std_dev: float | None = Field(description="Needs at least 3 days with data")
+    min: float | None
+    max: float | None
+
+
+class PeriodComparison(BaseModel):
+    metric: str
+    unit: str
+    description: str
+    period: PeriodStats = Field(description="The period asked about")
+    compare_period: PeriodStats = Field(description="The period it is compared with")
+    difference: float | None = Field(description="period mean - compare_period mean")
+    difference_pct: float | None = Field(description="difference as a percent of compare_period")
+    notes: list[str]
+
+
+def period_stats(start: date, end: date, values: list[float]) -> PeriodStats:
+    return PeriodStats(
+        start=start.isoformat(),
+        end=end.isoformat(),
+        days=(end - start).days + 1,
+        days_with_data=len(values),
+        mean=_r(fmean(values)) if values else None,
+        median=_r(median(values)) if values else None,
+        std_dev=_r(stdev(values)) if len(values) >= MIN_BASELINE_DAYS else None,
+        min=min(values) if values else None,
+        max=max(values) if values else None,
+    )
+
+
+def compare_periods(
+    metric: str,
+    unit: str,
+    description: str,
+    period: tuple[date, date, list[float]],
+    reference: tuple[date, date, list[float]],
+) -> PeriodComparison:
+    """Mean of one period against another. Each is (start, end, daily values with data)."""
+    a = period_stats(*period)
+    b = period_stats(*reference)
+    difference = difference_pct = None
+    if period[2] and reference[2]:
+        mean_a, mean_b = fmean(period[2]), fmean(reference[2])
+        difference = _r(mean_a - mean_b)
+        difference_pct = _r(100 * (mean_a - mean_b) / mean_b) if mean_b else None
+
+    notes: list[str] = []
+    for label, s in (("period", a), ("compare_period", b)):
+        if s.days_with_data == 0:
+            notes.append(
+                f"No {metric} data in {label} ({s.start} to {s.end}). garmin_describe_data "
+                "shows which dates have data; garmin_sync with days_back fetches older days."
+            )
+        elif s.days_with_data < SPARSE_BASELINE_DAYS:
+            notes.append(f"{label} has only {s.days_with_data} days with data; treat it as rough.")
+    share_a = a.days_with_data / a.days
+    share_b = b.days_with_data / b.days
+    if (
+        a.days_with_data
+        and b.days_with_data
+        and min(share_a, share_b) < UNEVEN_COVERAGE * max(share_a, share_b)
+    ):
+        notes.append(
+            f"Coverage differs: data on {share_a:.0%} of days in period vs {share_b:.0%} in "
+            "compare_period, so the means may not be like for like."
+        )
+    if period[0] <= reference[1] and reference[0] <= period[1]:
+        notes.append("The two periods overlap.")
+    notes.append("Means are of days with data; days without data are left out, not counted as 0.")
+    return PeriodComparison(
+        metric=metric,
+        unit=unit,
+        description=description,
+        period=a,
+        compare_period=b,
+        difference=difference,
+        difference_pct=difference_pct,
+        notes=notes,
+    )

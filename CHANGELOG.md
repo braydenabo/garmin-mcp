@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- `garmin_compare_periods`: one metric in two date ranges side by side (by default the last 30 days against the 30 before): days with data, mean, median, spread, min and max for each, and the difference in means. Notes flag empty or sparse periods, uneven coverage and overlapping ranges.
 - `garmin_get_baseline`: how one day's value of a metric compares with your own usual level over the days before it (30 by default, 7 to 365): baseline mean, median and usual range (mean ± 1 standard deviation), and the day's difference, z-score, percentile and whether it is below, within or above the usual range. Too little history is reported rather than guessed at.
 - `garmin_get_activity_stream`: one activity's heart rate, pace or speed, cadence, power, altitude and distance over elapsed time, read from its stored FIT file and averaged into even intervals (about 300 points by default, or choose `interval_seconds`). `start_minute` and `end_minute` zoom into part of a workout. Pauses show as gaps, unrecorded fields are null, and GPS positions are never read.
 

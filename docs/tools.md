@@ -4,6 +4,20 @@
 
 Every tool returns structured JSON (with a matching text copy). Units are in field names, and missing data is `null`, never zero. For ChatGPT chart calls, the model receives summary JSON and a display acknowledgement instead; full plot arrays are delivered to the widget in result metadata. Other chart clients keep the full structured/text data.
 
+## `garmin_compare_periods`
+
+One metric in two date ranges side by side: days with data, mean, median, spread, min and max for each, and the difference in means (absolute and %). For questions like 'October vs September'. Default: last 30 days vs the 30 before.
+
+*read-only, local only*
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `metric` | one of `awake_minutes`, `body_battery_charged`, `body_battery_drained`, `body_battery_high`, `body_battery_low`, `calories_active_kcal`, … | required | Metric name; see garmin_describe_data |
+| `start` | string | default `""` | Period start: YYYY-MM-DD. Default: 29 days before end |
+| `end` | string | default `"today"` | Period end: YYYY-MM-DD, 'today' or 'yesterday' |
+| `compare_start` | string | default `""` | Comparison start: YYYY-MM-DD. Default: same length as the period |
+| `compare_end` | string | default `""` | Comparison end. Default: the day before start |
+
 ## `garmin_describe_data`
 
 What's in the archive: each dataset's date coverage and last sync, every metric with its unit, and activity counts. Call this first.
