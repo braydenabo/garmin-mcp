@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-05
+
+The first stable release. The tools, their arguments and outputs, the metrics and their units, and the query tables are now a public API that only grows until 2.0.
+
 ### Changed
 
 - Stable. Tool names, arguments, output fields, metrics and units, query tables, CLI commands and environment variables only grow until 2.0; see Stability in CONTRIBUTING.md. A test enforces it against `tests/snapshots/public-api-v1.json`.
@@ -76,7 +80,8 @@ First release. Everything below is new.
 - Project skeleton: package, `--version` CLI, CI on Linux, macOS and Windows.
 - Guards against committing secrets and health data.
 
-[Unreleased]: https://github.com/braydenabo/garmin-mcp/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/braydenabo/garmin-mcp/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/braydenabo/garmin-mcp/compare/v0.3.0...v0.4.0
