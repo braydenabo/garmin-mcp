@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Fixed
+
+- `chatgpt-background stop` now waits until macOS has finished stopping the tunnel agent, and `start` retries briefly while macOS is still releasing it, so stopping and immediately starting again no longer fails.
+
 ## [0.3.0] - 2026-11-05
 
 ### Added

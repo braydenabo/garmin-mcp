@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,14 @@ from garmin_connect_personal_mcp.sync import SyncAlreadyRunning, sync_lock
 
 LABEL_PREFIX = "garmin-connect-personal-mcp.chatgpt."
 PROG = chatgpt.PROG
+
+# launchd finishes stopping a job after bootout returns, and refuses to bootstrap it again
+# until then; an immediate restart used to fail. Stop waits for the unload; start retries.
+UNLOAD_POLLS = 40
+UNLOAD_POLL_SECONDS = 0.25
+BOOTSTRAP_ATTEMPTS = 5
+BOOTSTRAP_RETRY_SECONDS = 1.0
+_sleep = time.sleep
 
 
 def _supported() -> bool:
@@ -90,7 +99,12 @@ class LaunchAgent:
         if self.loaded().returncode == 0:
             result = _command(["kickstart", self.target])
         else:
-            result = _command(["bootstrap", self.domain, str(self.path)])
+            for attempt in range(BOOTSTRAP_ATTEMPTS):
+                if attempt:
+                    _sleep(BOOTSTRAP_RETRY_SECONDS)
+                result = _command(["bootstrap", self.domain, str(self.path)])
+                if result.returncode == 0:
+                    break
         if result.returncode:
             raise BackgroundError(
                 "macOS could not start the tunnel agent. Check System Settings > General > "
@@ -98,10 +112,19 @@ class LaunchAgent:
             )
 
     def stop(self) -> None:
-        if self.loaded().returncode == 0 and _command(["bootout", self.target]).returncode:
+        if self.loaded().returncode != 0:
+            return
+        if _command(["bootout", self.target]).returncode:
             raise BackgroundError(
                 "macOS could not stop the tunnel agent. Retry before uninstalling."
             )
+        for _ in range(UNLOAD_POLLS):
+            if self.loaded().returncode != 0:
+                return
+            _sleep(UNLOAD_POLL_SECONDS)
+        raise BackgroundError(
+            "macOS is still stopping the tunnel agent. Wait a few seconds, then retry."
+        )
 
     def install(self, executable: str) -> None:
         if self.spec() is not None:
