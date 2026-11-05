@@ -2433,6 +2433,91 @@
       "open_world_hint": false,
       "read_only_hint": true
     },
+    "description": "One read-only SQLite SELECT over two clean tables: daily (a row per date, a column per metric named as in garmin_describe_data) and activities (a row per workout). For questions other tools can't answer. Max 500 rows. Full schema: garmin://schema.",
+    "input_schema": {
+      "properties": {
+        "sql": {
+          "description": "e.g. SELECT strftime('%Y-%m', date) AS month, avg(steps) FROM daily GROUP BY month",
+          "title": "Sql",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sql"
+      ],
+      "title": "garmin_queryArguments",
+      "type": "object"
+    },
+    "meta": {},
+    "name": "garmin_query",
+    "output_schema": {
+      "properties": {
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "row_count": {
+          "title": "Row Count",
+          "type": "integer"
+        },
+        "rows": {
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "truncated": {
+          "description": "True if there were more than 500 rows",
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "columns",
+        "rows",
+        "row_count",
+        "truncated",
+        "notes"
+      ],
+      "title": "QueryResult",
+      "type": "object"
+    },
+    "title": "Query the data with SQL"
+  },
+  {
+    "annotations": {
+      "destructive_hint": false,
+      "idempotent_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
     "description": "Render one interactive chart when requested. For a general sleep chart use sleep_hours; use sleep_stages when stages are requested. Do not add other metrics unless asked. This tool displays the final chart: summarize in text without recreating it in Python or another chart tool. Defaults to the last 30 days.",
     "input_schema": {
       "properties": {

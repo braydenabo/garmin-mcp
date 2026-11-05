@@ -111,6 +111,16 @@ Workouts newest first, with headline stats (duration, distance, pace or speed, h
 | `limit` | integer | default `20` | Page size, 1-100 |
 | `cursor` | string | default `""` | next_cursor from the previous page |
 
+## `garmin_query`
+
+One read-only SQLite SELECT over two clean tables: daily (a row per date, a column per metric named as in garmin_describe_data) and activities (a row per workout). For questions other tools can't answer. Max 500 rows. Full schema: garmin://schema.
+
+*read-only, local only*
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `sql` | string | required | e.g. SELECT strftime('%Y-%m', date) AS month, avg(steps) FROM daily GROUP BY month |
+
 ## `garmin_show_chart`
 
 Render one interactive chart when requested. For a general sleep chart use sleep_hours; use sleep_stages when stages are requested. Do not add other metrics unless asked. This tool displays the final chart: summarize in text without recreating it in Python or another chart tool. Defaults to the last 30 days.

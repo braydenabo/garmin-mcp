@@ -190,7 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--toolsets",
         default=os.environ.get("GARMIN_MCP_TOOLSETS", "daily,activities,sync,charts"),
         metavar="LIST",
-        help="comma-separated: daily, activities, sync, charts (GARMIN_MCP_TOOLSETS); "
+        help="comma-separated: daily, activities, query, sync, charts (GARMIN_MCP_TOOLSETS); "
         "garmin_describe_data is always on",
     )
     return parser
