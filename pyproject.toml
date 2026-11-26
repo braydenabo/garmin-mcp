@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "garmin-connect-personal-api-python~=1.0.0",
+    "garmin-connect-personal-api-python>=1.0,<1.2",
     "keyring>=25.6,<26",
     "mcp~=2.3",
     "platformdirs>=4.2",
